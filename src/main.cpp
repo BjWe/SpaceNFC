@@ -39,6 +39,8 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
           if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
             cout << "SpacebiAPP found" << endl;
 
+            tm.selectSpacebiApp(*currentTag);
+
             // Türtoken lesen
             spacebi_card_doorfile_t doorfile;
             if (tm.readDoorFile(*currentTag, &doorfile)) {
@@ -140,17 +142,20 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   string ldapusername = vm["ldapusername"].as<string>();
   sprintf(ldap.username, "%.63s", ldapusername.c_str());
 
-  spacebi_card_unique_randomfile_t rid1;
-  rid1.randomid = rand_64_distributor(rand_64_generator);
-
-  spacebi_card_unique_randomfile_t rid2;
-  rid2.randomid = rand_64_distributor(rand_64_generator);
+  spacebi_card_unique_randomfile_t rid[4];
+  rid[0].randomid = rand_64_distributor(rand_64_generator);
+  rid[1].randomid = rand_64_distributor(rand_64_generator);
+  rid[2].randomid = rand_64_distributor(rand_64_generator);
+  rid[3].randomid = rand_64_distributor(rand_64_generator);
+ 
 
   dump_metainfofile(meta);
   dump_doorfile(door);
   dump_ldapuserfile(ldap);
-  dump_uniquerandomfile(rid1);
-  dump_uniquerandomfile(rid2);
+  dump_uniquerandomfile(rid[0]);
+  dump_uniquerandomfile(rid[1]);
+  dump_uniquerandomfile(rid[2]);
+  dump_uniquerandomfile(rid[3]);
 
   if (tm.tagPresent()) {
     cout << "Tag present" << endl;
@@ -169,16 +174,34 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
         if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
           cout << "SpacebiAPP found" << endl;
 
-          // Türtoken lesen
-          spacebi_card_doorfile_t doorfile;
-          if (tm.readDoorFile(*currentTag, &doorfile)) {
-            dump_doorfile(doorfile);
+          // Die App wird nun gelöscht und neu angelegt
+          // Zuerst wird der bekannte Schlüssel benutzt, wenn das
+          // Fehlschlägt, wird der NULLKEY versucht
+          if (tm.deleteSpacebiApp(*currentTag)) {
+            cout << "Delete OK" << endl;
+
           } else {
-            cout << "Doorfile cannot be read" << endl;
+            cout << "Delete failed" << endl;
           }
 
         } else {
           cout << "No SpaicebiApp" << endl;
+        }
+
+        tm.createSpacebiApp(*currentTag);
+        if (tm.loginSpacebiApp(*currentTag, 0, false)) {
+
+          // Daten anlegen
+          tm.createMetaFile(*currentTag, meta);
+          tm.createDoorFile(*currentTag, door);
+          tm.createLDAPFile(*currentTag, ldap);
+          for(uint8_t i = 1; i <= 4; i++){
+            tm.createRandomIDFile(*currentTag, i, rid[i]);
+          }
+          
+
+        } else {
+          cout << "Relogin nach create fehlgeschlagen" << endl;
         }
 
         // Tag wieder loslassen

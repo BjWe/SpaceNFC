@@ -47,7 +47,18 @@ class SpacebiNFCTagManager {
   bool createSpacebiApp(FreefareTag tag);
   bool deleteSpacebiApp(FreefareTag tag);
 
+  bool readMetaFile(FreefareTag tag, spacebi_card_metainfofile_t *metafile);
+  bool createMetaFile(FreefareTag tag, spacebi_card_metainfofile_t metafile);
+  
   bool readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile);
+  bool createDoorFile(FreefareTag tag, spacebi_card_doorfile_t doorfile);
+
+  bool readLDAPFile(FreefareTag tag, spacebi_card_ldapuserfile_t *ldapfile);
+  bool createLDAPFile(FreefareTag tag, spacebi_card_ldapuserfile_t ldapfile);
+  
+  bool readRandomIDFile(FreefareTag tag, int id, spacebi_card_unique_randomfile_t *randomfile);
+  bool createRandomIDFile(FreefareTag tag, int id, spacebi_card_unique_randomfile_t randomfile);
+
 };
 
 #endif
