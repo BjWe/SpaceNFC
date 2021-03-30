@@ -4,7 +4,7 @@
 
 # Compiler settings - Can be customized.
 CC = g++
-CXXFLAGS = -std=c++11 -Wall -g
+CXXFLAGS = -std=c++11 -Wall -g 
 LDFLAGS = -lnfc -lfreefare -lboost_program_options -lboost_filesystem -lboost_system -lsqlite3
 
 # Makefile settings - Can be customized.
