@@ -2,6 +2,7 @@
 #define __GLOBAL_H__
 
 #define SPACEBIAPPID 0x031337
+#define SPACEBIAPPKEYNUM 5
 
 #define KEYNO_APPMASTER   0
 #define KEYNO_DOORREADER  1

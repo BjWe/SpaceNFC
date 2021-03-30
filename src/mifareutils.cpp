@@ -17,6 +17,7 @@ bool null_desfirekey(string algo, MifareDESFireKey *desfirekey){
     cout << "Algo '" << algo << "' wird nicht unterstützt" << endl;
     return false;
   }
+  return true;
 }
 
 bool hexstr_to_desfirekey(string algo, string hexstr, MifareDESFireKey *desfirekey){

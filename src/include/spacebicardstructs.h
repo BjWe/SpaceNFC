@@ -48,7 +48,7 @@ inline static void dump_ldapuserfile(spacebi_card_ldapuserfile_t lf){
 
 inline static void dump_uniquerandomfile(spacebi_card_unique_randomfile_t rf){
   cout << "=== RANDFILE ===" << endl;
-  printf("%llx" , rf.randomid);
+  printf("%lx" , rf.randomid);
   cout << endl << "================" << endl;
 }
 

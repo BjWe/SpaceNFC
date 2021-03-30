@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
   if (runmode == "door") {
     enterDoorReaderMode(config, tm);
   } else if (runmode == "info") {
-    enterInfoReaderMode();
+    enterInfoReaderMode(tm);
   } else if (runmode == "writer") {
     enterWriterMode(vm, config, tm);
   } else {
