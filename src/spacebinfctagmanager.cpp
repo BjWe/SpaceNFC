@@ -5,8 +5,8 @@
 #include <freefare.h>
 #include <nfc/nfc.h>
 
-#include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <iostream>
 
 #include "include/global.h"
@@ -133,24 +133,14 @@ int SpacebiNFCTagManager::hasSpacebiApp(FreefareTag tag) {
   }
 }
 
-bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile) {
-
-
+bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key){
   // ?!?!  Wird zum Glück wegoptimiert
   string lookupalgo = DEF2STR(SPACEBIAPPID);
   lookupalgo += ".algo";
 
   string lookupkey = DEF2STR(SPACEBIAPPID);
   lookupkey += ".key";
-  lookupkey += DEF2STR(KEYNO_DOORREADER);
-
-  /* Dump all keys
-  stringstream ss;
-  boost::property_tree::json_parser::write_json(ss, keys);
-  cout << ss.str() << std::endl;
-
-  cout << "Lookup: '" << lookup << "'" << endl;
-  */
+  lookupkey += keyno;
 
   boost::optional<string> algo = keys.get_optional<string>(lookupalgo);
   if (!algo) {
@@ -164,8 +154,81 @@ bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t
     return false;
   }
 
+  if (!hexstr_to_desfirekey(algo.get(), key_hexstr.get(), key)) {
+    cout << "Cannot build desfirekey" << endl;
+    return false;
+  }
+}
+
+bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno){
+
   MifareDESFireKey key;
-  hexstr_to_desfirekey(algo.get(), key_hexstr.get(), &key);
+
+  if(!prepareAppKey(keyno, &key)){
+    cout << "prepare key failed" << endl;
+    return false;
+  }
+
+  // Anmelden
+  if (mifare_desfire_authenticate(tag, keyno, key) < 0) {
+    cout << "login on app failed" << endl;
+    return false;
+  }
+
+
+  mifare_desfire_key_free(key);
+}
+
+bool SpacebiNFCTagManager::selectSpacebiApp(FreefareTag tag) {
+  MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
+  if (mifare_desfire_select_application(tag, aid) < 0) {
+    cout << "Select spacebi app failed" << endl;
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
+  MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
+
+  /* Mifare DESFire Application settings
+    * bit 7 - 4: Number of key needed to change application keys (key 0 - 13; 0 = master key; 14 = key itself required for key change; 15 = all keys are frozen)
+    * bit 3: Application configuration frozen = 0; Application configuration changeable when authenticated with application master key = 1
+    * bit 2: Application master key authentication required for create/delete files = 0; Authentication not required = 1
+    * bit 1: GetFileIDs, GetFileSettings and GetKeySettings behavior: Master key authentication required = 0; No authentication required = 1
+    * bit 0 = Application master key frozen = 0; Application master key changeable = 1
+    */
+
+    uint8_t app_settings = MDAPP_SETTINGS(0, 1, 0, 1, 1);
+    if (mifare_desfire_create_application_3k3des(tag, aid, app_settings, 2) < 0) {
+      cout << "Create wasn't successful" << endl;
+      return false;
+    }
+
+    // App auswählen
+    mifare_desfire_select_application(tag, aid);
+    // Anmelden
+    if (mifare_desfire_authenticate(tag, 0, null_key) < 0) {
+      cout << "Auth after create wasn't successful" << endl;
+      return false;
+    }
+}
+
+
+
+bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile) {
+
+  if(!loginSpacebiApp(tag, KEYNO_DOORREADER)){
+    return false;
+  }
+
+
+  if (mifare_desfire_read_data(tag, FILENO_DOORINFO, 0, sizeof(spacebi_card_doorfile_t), doorfile) < 0) {
+    cout << "read from app failed" << endl;
+    return false;
+  }
+
   
 
   return true;
