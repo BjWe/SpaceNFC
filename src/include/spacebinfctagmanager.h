@@ -28,6 +28,8 @@ class SpacebiNFCTagManager {
 
   nfc_context *context;
 
+  bool prepareAppKey(int keyno);
+
  public:
   SpacebiNFCTagManager(boost::property_tree::ptree *_keys);
   ~SpacebiNFCTagManager();
@@ -39,6 +41,10 @@ class SpacebiNFCTagManager {
   bool connectTag(FreefareTag tag);
   bool disconnectTag(FreefareTag tag);
   int hasSpacebiApp(FreefareTag tag);
+  bool loginSpacebiApp(FreefareTag tag, int keyno);
+  bool selectSpacebiApp(FreefareTag tag);
+  bool createSpacebiApp(FreefareTag tag);
+  bool deleteSpacebiApp(FreefareTag tag);
 
   bool readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile);
 };
