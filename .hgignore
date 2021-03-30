@@ -1,0 +1,8 @@
+.vscode
+obj
+cache/cache.db
+.*\.d$
+conf/localconfig.ini
+conf/desfirekeys.ini
+conf/desfiretestkeys.ini
+spacebinfcmanager
