@@ -28,7 +28,8 @@ class SpacebiNFCTagManager {
 
   nfc_context *context;
 
-  bool prepareAppKey(int keyno);
+  bool prepareAppKey(int keyno, MifareDESFireKey *key);
+  bool changeAppKey(FreefareTag tag, int keyno, MifareDESFireKey *fromkey, MifareDESFireKey *tokey);
 
  public:
   SpacebiNFCTagManager(boost::property_tree::ptree *_keys);
@@ -41,7 +42,7 @@ class SpacebiNFCTagManager {
   bool connectTag(FreefareTag tag);
   bool disconnectTag(FreefareTag tag);
   int hasSpacebiApp(FreefareTag tag);
-  bool loginSpacebiApp(FreefareTag tag, int keyno);
+  bool loginSpacebiApp(FreefareTag tag, int keyno, bool usenullkey);
   bool selectSpacebiApp(FreefareTag tag);
   bool createSpacebiApp(FreefareTag tag);
   bool deleteSpacebiApp(FreefareTag tag);

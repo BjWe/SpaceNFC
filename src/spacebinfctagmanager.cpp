@@ -133,7 +133,7 @@ int SpacebiNFCTagManager::hasSpacebiApp(FreefareTag tag) {
   }
 }
 
-bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key){
+bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key) {
   // ?!?!  Wird zum Glück wegoptimiert
   string lookupalgo = DEF2STR(SPACEBIAPPID);
   lookupalgo += ".algo";
@@ -154,19 +154,44 @@ bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key){
     return false;
   }
 
+  if (keyno < 0) {
+    if (!null_desfirekey(algo.get(), key)) {
+      cout << "Cannot build null desfirekey" << endl;
+      return false;
+    }
+  }
+
   if (!hexstr_to_desfirekey(algo.get(), key_hexstr.get(), key)) {
     cout << "Cannot build desfirekey" << endl;
     return false;
   }
+
+  return true;
 }
 
-bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno){
+bool SpacebiNFCTagManager::changeAppKey(FreefareTag tag, int keyno, MifareDESFireKey *fromkey, MifareDESFireKey *tokey){
 
+  if (mifare_desfire_change_key(tag, keyno, *fromkey, *tokey) < 0) {
+    cout << "Keychange 1 after create wasn't successful" << endl;
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno, bool usenullkey) {
   MifareDESFireKey key;
 
-  if(!prepareAppKey(keyno, &key)){
-    cout << "prepare key failed" << endl;
-    return false;
+  if (usenullkey) {
+    if (!prepareAppKey(-1, &key)) {
+      cout << "prepare key failed" << endl;
+      return false;
+    }
+  } else {
+    if (!prepareAppKey(keyno, &key)) {
+      cout << "prepare key failed" << endl;
+      return false;
+    }
   }
 
   // Anmelden
@@ -175,8 +200,9 @@ bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno){
     return false;
   }
 
-
   mifare_desfire_key_free(key);
+
+  return true;
 }
 
 bool SpacebiNFCTagManager::selectSpacebiApp(FreefareTag tag) {
@@ -200,36 +226,61 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
     * bit 0 = Application master key frozen = 0; Application master key changeable = 1
     */
 
-    uint8_t app_settings = MDAPP_SETTINGS(0, 1, 0, 1, 1);
-    if (mifare_desfire_create_application_3k3des(tag, aid, app_settings, 2) < 0) {
-      cout << "Create wasn't successful" << endl;
-      return false;
-    }
-
-    // App auswählen
-    mifare_desfire_select_application(tag, aid);
-    // Anmelden
-    if (mifare_desfire_authenticate(tag, 0, null_key) < 0) {
-      cout << "Auth after create wasn't successful" << endl;
-      return false;
-    }
-}
-
-
-
-bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile) {
-
-  if(!loginSpacebiApp(tag, KEYNO_DOORREADER)){
+  uint8_t app_settings = MDAPP_SETTINGS(0, 1, 0, 1, 1);
+  if (mifare_desfire_create_application_3k3des(tag, aid, app_settings, 5) < 0) {
+    cout << "Create wasn't successful" << endl;
     return false;
   }
 
+  // App auswählen
+  mifare_desfire_select_application(tag, aid);
+
+  // Mit null key anmelden
+  loginSpacebiApp(tag, 0, true);
+
+  MifareDESFireKey nullkey;
+  prepareAppKey(-1, &nullkey);
+
+  // 5 Application Keys erzeugen  (0-4)
+  MifareDESFireKey appkeys[5];
+  for(uint8_t i = 0; i < SPACEBIAPPKEYNUM; i++){
+    prepareAppKey(i, &appkeys[i]);
+  }
+
+  // Rückwärtsgang 
+  // Wenn Key 0 geändert wird müssen wir uns neu anmelden
+  for(uint8_t i = SPACEBIAPPKEYNUM; i > 0; i--){
+    changeAppKey(tag, i - 1, &nullkey, &appkeys[i - 1]);
+  }
+
+  // Speicher freigeben
+  for(uint8_t i = 0; i < SPACEBIAPPKEYNUM; i++){
+    mifare_desfire_key_free(appkeys[i]);
+  }
+
+  mifare_desfire_key_free(nullkey); 
+
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::deleteSpacebiApp(FreefareTag tag) {
+  MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
+
+  mifare_desfire_delete_application(tag, aid);
+  
+  return true;
+}
+
+bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile) {
+  if (!loginSpacebiApp(tag, KEYNO_DOORREADER, false)) {
+    return false;
+  }
 
   if (mifare_desfire_read_data(tag, FILENO_DOORINFO, 0, sizeof(spacebi_card_doorfile_t), doorfile) < 0) {
     cout << "read from app failed" << endl;
     return false;
   }
-
-  
 
   return true;
 }
