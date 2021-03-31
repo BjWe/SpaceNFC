@@ -45,6 +45,15 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
             spacebi_card_doorfile_t doorfile;
             if (tm.readDoorFile(*currentTag, &doorfile)) {
               dump_doorfile(doorfile);
+              string doortoken = doorfile_to_hexstring(doorfile);
+
+              if(cm.tokenInDB(doortoken)){
+                cout << "found in cache" << endl;
+              }
+
+              cout << "string rep:" << endl << doorfile_to_hexstring(doorfile) << endl;
+              //cm.tokenInDB()
+
             } else {
               cout << "Doorfile cannot be read" << endl;
             }
