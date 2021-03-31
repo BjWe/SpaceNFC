@@ -12,7 +12,7 @@ bool null_desfirekey(string algo, MifareDESFireKey *desfirekey){
   if(algo == "3K3DES"){
     uint8_t buff[ALGO_3K3DES_SIZE]; 
     memset(buff, 0, sizeof(buff));
-    *desfirekey = mifare_desfire_3k3des_key_new_with_version(buff);
+    *desfirekey = mifare_desfire_3k3des_key_new(buff);
     //mifare_desfire_key_set_version(desfirekey, 0);
   } else {
     cout << "Algo '" << algo << "' wird nicht unterstützt" << endl;
@@ -47,7 +47,7 @@ bool hexstr_to_desfirekey(string algo, string hexstr, MifareDESFireKey *desfirek
       buff[i/2] = (char) strtol(byteString.c_str(), NULL, 16);
     }
 
-    *desfirekey = mifare_desfire_3k3des_key_new_with_version(buff);
+    *desfirekey = mifare_desfire_3k3des_key_new(buff);
 
     return true;
   } else {
