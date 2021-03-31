@@ -1,6 +1,7 @@
 .vscode
 obj
 cache/cache.db
+db
 .*\.d$
 conf/localconfig.ini
 conf/desfirekeys.ini

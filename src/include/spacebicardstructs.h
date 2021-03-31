@@ -31,7 +31,7 @@ typedef struct  __attribute__((packed)) {
 // Convert
 
 inline static string doorfile_to_hexstring(spacebi_card_doorfile_t df){
-  return hexStr(&df.token[0], sizeof(df.token)); 
+  return hex_str(&df.token[0], sizeof(df.token)); 
 }
 
 // Dump
@@ -46,7 +46,7 @@ inline static void dump_metainfofile(spacebi_card_metainfofile_t mf){
 inline static void dump_doorfile(spacebi_card_doorfile_t df){
   cout << "=== DOORFILE ===" << endl;
   for(uint8_t i; i < 32; i++){
-    printf("%02x ", df.token[i]);
+    printf("%02x", df.token[i]);
   }
   cout << endl << "================" << endl;
 }
