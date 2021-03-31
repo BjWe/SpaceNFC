@@ -59,7 +59,7 @@ inline static void dump_ldapuserfile(spacebi_card_ldapuserfile_t lf){
 
 inline static void dump_uniquerandomfile(spacebi_card_unique_randomfile_t rf){
   cout << "=== RANDFILE ===" << endl;
-  printf("%lx / %lu" , rf.randomid, rf.randomid);
+  printf("%" PRIx64 " / %" PRIu64, rf.randomid, rf.randomid);
   cout << endl << "================" << endl;
 }
 
