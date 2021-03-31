@@ -177,8 +177,9 @@ bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key) {
 }
 
 bool SpacebiNFCTagManager::changeAppKey(FreefareTag tag, int keyno, MifareDESFireKey *fromkey, MifareDESFireKey *tokey) {
-  if (mifare_desfire_change_key(tag, keyno, *tokey, *fromkey) < 0) {
-    cout << "Keychange " << keyno << " after create wasn't successful" << endl;
+  int ret = mifare_desfire_change_key(tag, keyno, *tokey, *fromkey);
+  if (ret < 0) {
+    cout << "Keychange " << keyno << " after create wasn't successful (" << to_string(ret) << ")" << endl;
     return false;
   }
 
@@ -241,8 +242,14 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
   // App auswählen
   mifare_desfire_select_application(tag, aid);
 
+
   // Mit null key anmelden
-  loginSpacebiApp(tag, 0, true);
+  if(!loginSpacebiApp(tag, 0, true)){
+    cout << "login with null key after create failed" << endl;
+    return false;
+  } else {
+    cout << "login with null key after create ok" << endl;
+  }
 
   MifareDESFireKey nullkey;
   prepareAppKey(-1, &nullkey);
@@ -253,11 +260,15 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
     prepareAppKey(i, &appkeys[i]);
   }
 
+  // ===== Funktioniert anscheinend nicht überall !?!?!?!
   // Rückwärtsgang
   // Wenn Key 0 geändert wird müssen wir uns neu anmelden
+  // Kleine Tokens (bauform) haben hier ein Problem!
   for (uint8_t i = SPACEBIAPPKEYNUM; i > 0; i--) {
     changeAppKey(tag, i - 1, &nullkey, &appkeys[i - 1]);
   }
+  //changeAppKey(tag, 0, &nullkey, &appkeys[0]);
+
 
   // Speicher freigeben
   for (uint8_t i = 0; i < SPACEBIAPPKEYNUM; i++) {

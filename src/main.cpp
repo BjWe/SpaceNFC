@@ -18,6 +18,7 @@ namespace po = boost::program_options;
 void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManager tm) {
   // Debugoutput
   cout << "Using SQLite CacheDB: " << config.get<string>("cache.db") << endl;
+  cout << "Using SQLite AuthDB: " << config.get<string>("auth.db") << endl;
 
   Cachemanager cm(config.get<string>("cache.db"));
   Authenticator at(config.get<string>("auth.db"), cm);
@@ -53,11 +54,11 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
               if (at.checkDoorToken(doortoken)) {
                 execcmd = "bash " + config.get<string>("door.exec_on_auth_success") + " &";
                 cout << "Exec Succ: " << execcmd;
-                //system(execcmd.c_str());
+                system(execcmd.c_str());
               } else {
                 execcmd = "bash " + config.get<string>("door.exec_on_auth_success") + " &";
                 cout << "Exec Fail: " << execcmd;
-                //system(execcmd.c_str());
+                system(execcmd.c_str());
               }
               /*
               if(cm.tokenInDB(doortoken)){
@@ -114,12 +115,39 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
         if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
           cout << "SpacebiAPP found" << endl;
 
+          tm.selectSpacebiApp(*currentTag);
+
+          // Meta lesen
+          spacebi_card_metainfofile_t infofile;
+          if (tm.readMetaFile(*currentTag, &infofile)) {
+            dump_metainfofile(infofile);
+          } else {
+            cout << "Infofile cannot be read" << endl;
+          }
+
           // Türtoken lesen
           spacebi_card_doorfile_t doorfile;
           if (tm.readDoorFile(*currentTag, &doorfile)) {
             dump_doorfile(doorfile);
           } else {
             cout << "Doorfile cannot be read" << endl;
+          }
+
+          // LDAP lesen
+          spacebi_card_ldapuserfile_t ldapfile;
+          if (tm.readLDAPFile(*currentTag, &ldapfile)) {
+            dump_ldapuserfile(ldapfile);
+          } else {
+            cout << "LDAPFile cannot be read" << endl;
+          }
+
+          for (uint8_t i = 1; i <= 4; i++) {
+            spacebi_card_unique_randomfile_t randfile;
+            if (tm.readRandomIDFile(*currentTag, i, &randfile)) {
+              dump_uniquerandomfile(randfile);
+            } else {
+              cout << "Randfile " << i << " cannot be read" << endl;
+            }
           }
 
         } else {
