@@ -12,6 +12,8 @@ class Cachemanager {
   Cachemanager(string databasefile);
   ~Cachemanager();
   bool tokenInDB(string token);
+  bool addToken(string token, bool access);
+  bool updateToken(string token, bool access);
 };
 
 #endif

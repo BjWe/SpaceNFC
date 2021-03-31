@@ -7,6 +7,7 @@
 #include <iostream>
 #include <random>
 
+#include "include/authenticator.h"
 #include "include/cachemanager.h"
 #include "include/spacebinfctagmanager.h"
 
@@ -18,7 +19,8 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
   // Debugoutput
   cout << "Using SQLite CacheDB: " << config.get<string>("cache.db") << endl;
 
-  Cachemanager cm(config.get<std::string>("cache.db"));
+  Cachemanager cm(config.get<string>("cache.db"));
+  Authenticator at(config.get<string>("auth.db"), cm);
 
   bool terminate = false;
   while (!terminate) {
@@ -47,11 +49,25 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
               dump_doorfile(doorfile);
               string doortoken = doorfile_to_hexstring(doorfile);
 
+              string execcmd;
+              if (at.checkDoorToken(doortoken)) {
+                execcmd = "bash " + config.get<string>("door.exec_on_auth_success") + " &";
+                cout << "Exec Succ: " << execcmd;
+                //system(execcmd.c_str());
+              } else {
+                execcmd = "bash " + config.get<string>("door.exec_on_auth_success") + " &";
+                cout << "Exec Fail: " << execcmd;
+                //system(execcmd.c_str());
+              }
+              /*
               if(cm.tokenInDB(doortoken)){
                 cout << "found in cache" << endl;
+              } else {
+                cm.addToken(doortoken, true);
               }
-
-              cout << "string rep:" << endl << doorfile_to_hexstring(doorfile) << endl;
+*/
+              cout << "string rep:" << endl
+                   << doorfile_to_hexstring(doorfile) << endl;
               //cm.tokenInDB()
 
             } else {
@@ -76,8 +92,7 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
     }
   }
 
-  //cm.tokenInDB("123456789");
-
+  at.~Authenticator();
   cm.~Cachemanager();
 }
 
@@ -152,19 +167,21 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   sprintf(ldap.username, "%.63s", ldapusername.c_str());
 
   spacebi_card_unique_randomfile_t rid[4];
-  rid[0].randomid = rand_64_distributor(rand_64_generator);
-  rid[1].randomid = rand_64_distributor(rand_64_generator);
+
+  if (vm.count("rnd1")) {
+    rid[0].randomid = hexstr_to_uint64(vm["rnd1"].as<string>());
+  } else {
+    rid[0].randomid = rand_64_distributor(rand_64_generator);
+  }
+
+  if (vm.count("rnd2")) {
+    rid[1].randomid = hexstr_to_uint64(vm["rnd2"].as<string>());
+  } else {
+    rid[1].randomid = rand_64_distributor(rand_64_generator);
+  }
+
   rid[2].randomid = rand_64_distributor(rand_64_generator);
   rid[3].randomid = rand_64_distributor(rand_64_generator);
- 
-
-  dump_metainfofile(meta);
-  dump_doorfile(door);
-  dump_ldapuserfile(ldap);
-  dump_uniquerandomfile(rid[0]);
-  dump_uniquerandomfile(rid[1]);
-  dump_uniquerandomfile(rid[2]);
-  dump_uniquerandomfile(rid[3]);
 
   if (tm.tagPresent()) {
     cout << "Tag present" << endl;
@@ -199,15 +216,21 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 
         tm.createSpacebiApp(*currentTag);
         if (tm.loginSpacebiApp(*currentTag, 0, false)) {
-
           // Daten anlegen
           tm.createMetaFile(*currentTag, meta);
           tm.createDoorFile(*currentTag, door);
           tm.createLDAPFile(*currentTag, ldap);
-          for(uint8_t i = 1; i <= 4; i++){
+          for (uint8_t i = 1; i <= 4; i++) {
             tm.createRandomIDFile(*currentTag, i, rid[i]);
           }
-          
+
+          dump_metainfofile(meta);
+          dump_doorfile(door);
+          dump_ldapuserfile(ldap);
+          dump_uniquerandomfile(rid[0]);
+          dump_uniquerandomfile(rid[1]);
+          dump_uniquerandomfile(rid[2]);
+          dump_uniquerandomfile(rid[3]);
 
         } else {
           cout << "Relogin nach create fehlgeschlagen" << endl;
@@ -215,21 +238,20 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 
         // Tag wieder loslassen
         tm.disconnectTag(*currentTag);
+
       } else {
         cout << "Tag not supported" << endl;
       }
     }
 
-    usleep(1500 * 1000);  //1,5 sek
   } else {
     cout << "No Tag present" << endl;
-    usleep(1500 * 1000);  //1,5 sek
   }
 }
 
 int main(int argc, char *argv[]) {
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer");
+  desc.add_options()("help", "hilfe")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
