@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#include "utils.h"
+
 using namespace std;
 
 typedef struct  __attribute__((packed)) {
@@ -24,6 +26,15 @@ typedef struct  __attribute__((packed)) {
 typedef struct  __attribute__((packed)) {
   uint64_t randomid;
 } spacebi_card_unique_randomfile_t;
+
+
+// Convert
+
+inline static string doorfile_to_hexstring(spacebi_card_doorfile_t df){
+  return hexStr(&df.token[0], sizeof(df.token)); 
+}
+
+// Dump
 
 inline static void dump_metainfofile(spacebi_card_metainfofile_t mf){
   cout << "=== METAFILE ===" << endl;
