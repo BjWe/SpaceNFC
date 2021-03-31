@@ -56,7 +56,7 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
                 cout << "Exec Succ: " << execcmd;
                 system(execcmd.c_str());
               } else {
-                execcmd = "bash " + config.get<string>("door.exec_on_auth_success") + " &";
+                execcmd = "bash " + config.get<string>("door.exec_on_auth_failed") + " &";
                 cout << "Exec Fail: " << execcmd;
                 system(execcmd.c_str());
               }
