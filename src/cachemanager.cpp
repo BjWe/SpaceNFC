@@ -2,6 +2,8 @@
 
 #include <sqlite3.h>
 
+#include <spdlog/spdlog.h>
+
 #include <boost/filesystem.hpp>
 #include <chrono>
 #include <iostream>
@@ -12,7 +14,7 @@ Cachemanager::Cachemanager(string databasefile) {
   int rc;
   rc = sqlite3_open(databasefile.c_str(), &db);
   if (rc) {
-    cout << "can't open db " << sqlite3_errmsg(db);
+    spdlog::error("can't open db ({})", sqlite3_errmsg(db));
     sqlite3_close(db);
     exit(1);
   }
@@ -28,7 +30,7 @@ bool Cachemanager::tokenInDB(string token) {
   int rc;
   rc = sqlite3_prepare_v2(db, "select count(*) from doortokens where token = ?", -1, &stmt, 0);
   if (rc != SQLITE_OK) {
-    cout << "Prepare failed\n";
+    spdlog::error("sqlite prepare failed");
     return false;
   }
 
@@ -37,11 +39,11 @@ bool Cachemanager::tokenInDB(string token) {
   //cout << rc << endl;
   if (rc == SQLITE_ROW) {
     int colcount = sqlite3_column_int(stmt, 0);
-    cout << "Found " << colcount << " entries\n";
+    spdlog::debug("Found {}} entries", colcount);
 
     return colcount > 0;
   } else {
-    cout << "Error while searching\n";
+    spdlog::error("Error while searching");
     return false;
   }
   return false;
@@ -53,7 +55,7 @@ bool Cachemanager::addToken(string token, bool access) {
   int rc;
   rc = sqlite3_prepare_v2(db, "insert into doortokens VALUES (?, ?, ?)", -1, &stmt, 0);
   if (rc != SQLITE_OK) {
-    cout << "Prepare failed\n";
+    spdlog::error("Prepare failed");
     return false;
   }
 
@@ -77,7 +79,7 @@ bool Cachemanager::updateToken(string token, bool access) {
   int rc;
   rc = sqlite3_prepare_v2(db, "update doortokens set access = ?, lastseen = ? where token = ?", -1, &stmt, 0);
   if (rc != SQLITE_OK) {
-    cout << "Prepare failed\n";
+    spdlog::error("Prepare failed");
     return false;
   }
 

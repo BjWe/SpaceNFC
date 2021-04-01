@@ -14,6 +14,7 @@ class Authenticator {
   Authenticator(string databasefile, Cachemanager cm);
   ~Authenticator();
   bool checkDoorToken(string token);
+  bool registerUser(int memberid, string doortoken, uint64_t rndid1, uint64_t rndid2);
 };
 
 #endif

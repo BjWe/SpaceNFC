@@ -3,9 +3,13 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+
+
 #include <chrono>
 #include <iostream>
 #include <random>
+
+#include <spdlog/spdlog.h>
 
 #include "include/authenticator.h"
 #include "include/cachemanager.h"
@@ -13,20 +17,14 @@
 
 using namespace std;
 
+
 namespace po = boost::program_options;
 
-void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManager tm) {
-  // Debugoutput
-  cout << "Using SQLite CacheDB: " << config.get<string>("cache.db") << endl;
-  cout << "Using SQLite AuthDB: " << config.get<string>("auth.db") << endl;
-
-  Cachemanager cm(config.get<string>("cache.db"));
-  Authenticator at(config.get<string>("auth.db"), cm);
-
+void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManager tm, Cachemanager cm, Authenticator at) {
   bool terminate = false;
   while (!terminate) {
     if (tm.tagPresent()) {
-      cout << "Tag present" << endl;
+      spdlog::debug("Tag present");
 
       FreefareTag *currentTag = NULL;
 
@@ -40,7 +38,7 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
 
           // Ist auf dem Tag die SpaceBi App installiert?
           if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
-            cout << "SpacebiAPP found" << endl;
+            spdlog::debug("SpacebiAPP found");
 
             tm.selectSpacebiApp(*currentTag);
 
@@ -53,11 +51,11 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
               string execcmd;
               if (at.checkDoorToken(doortoken)) {
                 execcmd = "bash " + config.get<string>("door.exec_on_auth_success") + " &";
-                cout << "Exec Succ: " << execcmd;
+                spdlog::trace("Exec Succ: {}", execcmd);
                 system(execcmd.c_str());
               } else {
                 execcmd = "bash " + config.get<string>("door.exec_on_auth_failed") + " &";
-                cout << "Exec Fail: " << execcmd;
+                spdlog::trace("Exec Fail: {}", execcmd);
                 system(execcmd.c_str());
               }
               /*
@@ -72,34 +70,31 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
               //cm.tokenInDB()
 
             } else {
-              cout << "Doorfile cannot be read" << endl;
+              spdlog::error("Doorfile cannot be read");
             }
 
           } else {
-            cout << "No SpaicebiApp" << endl;
+            spdlog::warn("No SpaicebiApp");
           }
 
           // Tag wieder loslassen
           tm.disconnectTag(*currentTag);
         } else {
-          cout << "Tag not supported" << endl;
+          spdlog::warn("Tag not supported");
         }
       }
 
-      usleep(1500 * 1000);  //1,5 sek
+      usleep(3000 * 1000);  //1,5 sek
     } else {
-      cout << "No Tag present" << endl;
-      usleep(1500 * 1000);  //1,5 sek
+      spdlog::trace("No Tag present");
+      usleep(1000 * 1000);  //1,5 sek
     }
   }
-
-  at.~Authenticator();
-  cm.~Cachemanager();
 }
 
 void enterInfoReaderMode(SpacebiNFCTagManager tm) {
   if (tm.tagPresent()) {
-    cout << "Tag present" << endl;
+    spdlog::info("tag present");
 
     FreefareTag *currentTag = NULL;
 
@@ -113,7 +108,7 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
 
         // Ist auf dem Tag die SpaceBi App installiert?
         if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
-          cout << "SpacebiAPP found" << endl;
+          spdlog::info("SpacebiAPP found");
 
           tm.selectSpacebiApp(*currentTag);
 
@@ -122,7 +117,7 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
           if (tm.readMetaFile(*currentTag, &infofile)) {
             dump_metainfofile(infofile);
           } else {
-            cout << "Infofile cannot be read" << endl;
+            spdlog::error("infofile cannot be read");
           }
 
           // Türtoken lesen
@@ -130,7 +125,7 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
           if (tm.readDoorFile(*currentTag, &doorfile)) {
             dump_doorfile(doorfile);
           } else {
-            cout << "Doorfile cannot be read" << endl;
+            spdlog::error("doorfile cannot be read");
           }
 
           // LDAP lesen
@@ -138,7 +133,7 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
           if (tm.readLDAPFile(*currentTag, &ldapfile)) {
             dump_ldapuserfile(ldapfile);
           } else {
-            cout << "LDAPFile cannot be read" << endl;
+            spdlog::error("LDAPFile cannot be read");
           }
 
           for (uint8_t i = 1; i <= 4; i++) {
@@ -146,27 +141,27 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
             if (tm.readRandomIDFile(*currentTag, i, &randfile)) {
               dump_uniquerandomfile(randfile);
             } else {
-              cout << "Randfile " << i << " cannot be read" << endl;
+              spdlog::error("randfile #{} cannot be read", i);
             }
           }
 
         } else {
-          cout << "No SpaicebiApp" << endl;
+          spdlog::error("no spacebi app found");
         }
 
         // Tag wieder loslassen
         tm.disconnectTag(*currentTag);
       } else {
-        cout << "Tag not supported" << endl;
+        spdlog::error("tag not supported");
       }
     }
 
   } else {
-    cout << "No Tag present" << endl;
+    spdlog::error("no tag present");
   }
 }
 
-void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, SpacebiNFCTagManager tm) {
+void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, SpacebiNFCTagManager tm, Cachemanager cm, Authenticator at) {
   auto timenow = std::chrono::system_clock::now();
 
   // Random initialisieren
@@ -212,7 +207,7 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   rid[3].randomid = rand_64_distributor(rand_64_generator);
 
   if (tm.tagPresent()) {
-    cout << "Tag present" << endl;
+    spdlog::info("Tag present");
 
     FreefareTag *currentTag = NULL;
 
@@ -226,20 +221,20 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 
         // Ist auf dem Tag die SpaceBi App installiert?
         if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
-          cout << "SpacebiAPP found" << endl;
+          spdlog::info("SpacebiAPP found");
 
           // Die App wird nun gelöscht und neu angelegt
           // Zuerst wird der bekannte Schlüssel benutzt, wenn das
           // Fehlschlägt, wird der NULLKEY versucht
           if (tm.deleteSpacebiApp(*currentTag)) {
-            cout << "Delete OK" << endl;
+            spdlog::info("Delete OK");
 
           } else {
-            cout << "Delete failed" << endl;
+            spdlog::error("Delete failed");
           }
 
         } else {
-          cout << "No SpaicebiApp" << endl;
+          spdlog::info("No SpaicebiApp");
         }
 
         tm.createSpacebiApp(*currentTag);
@@ -260,26 +255,32 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
           dump_uniquerandomfile(rid[2]);
           dump_uniquerandomfile(rid[3]);
 
+          if (vm.count("register")) {
+            at.registerUser(meta.memberid, hex_str(door.token, sizeof(door.token)), rid[0].randomid, rid[1].randomid);
+          }
+
         } else {
-          cout << "Relogin nach create fehlgeschlagen" << endl;
+          spdlog::error("relogin after create app failed");
         }
 
         // Tag wieder loslassen
         tm.disconnectTag(*currentTag);
 
       } else {
-        cout << "Tag not supported" << endl;
+        spdlog::error("tag not supported");
       }
     }
 
   } else {
-    cout << "No Tag present" << endl;
+    spdlog::error("no tag present");
   }
 }
 
 int main(int argc, char *argv[]) {
+
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer");
+  desc.add_options()("help", "hilfe")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer");
+
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -290,9 +291,11 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+    spdlog::info("Startup");
+
   // Konfigurationsdaten lesen
   if (!vm.count("configfile")) {
-    cout << "Configfile missing\n";
+    spdlog::error("Configfile missing");
     cout << desc << "\n";
     return 1;
   }
@@ -308,14 +311,14 @@ int main(int argc, char *argv[]) {
 
   // Keyfile lesen
   if (!vm.count("keyfile")) {
-    cout << "Keyfile missing\n";
+    spdlog::error("Keyfile missing");
     cout << desc << "\n";
     return 1;
   }
 
   string keyfilename = vm["keyfile"].as<string>();
   if (!boost::filesystem::exists(keyfilename)) {
-    cout << "Keyfile '" << keyfilename << " not found'\n";
+    spdlog::error("Keyfile '" + keyfilename + "' not found");
     return 1;
   }
 
@@ -327,21 +330,31 @@ int main(int argc, char *argv[]) {
 
   // Modus prüfen
   if (!vm.count("mode")) {
-    cout << "Mode missing\n";
+    spdlog::error("Mode missing");
     cout << desc << "\n";
     return 1;
   }
 
+  // Debugoutput
+  spdlog::info("Using SQLite CacheDB: " + config.get<string>("cache.db"));
+  spdlog::info("Using SQLite AuthDB: " + config.get<string>("auth.db"));
+
+  Cachemanager cm(config.get<string>("cache.db"));
+  Authenticator at(config.get<string>("auth.db"), cm);
+
   string runmode = vm["mode"].as<string>();
   if (runmode == "door") {
-    enterDoorReaderMode(config, tm);
+    enterDoorReaderMode(config, tm, cm, at);
   } else if (runmode == "info") {
     enterInfoReaderMode(tm);
   } else if (runmode == "writer") {
-    enterWriterMode(vm, config, tm);
+    enterWriterMode(vm, config, tm, cm, at);
   } else {
-    cout << "invalid mode";
+    spdlog::error("invalid mode");
   }
+
+  at.~Authenticator();
+  cm.~Cachemanager();
 
   tm.~SpacebiNFCTagManager();
 
