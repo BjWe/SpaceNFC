@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <regex>
 
+#include <spdlog/spdlog.h>
+
 using namespace std;
 
 #define ALGO_3K3DES_SIZE 24
@@ -15,7 +17,7 @@ bool null_desfirekey(string algo, MifareDESFireKey *desfirekey){
     *desfirekey = mifare_desfire_3k3des_key_new(buff);
     //mifare_desfire_key_set_version(desfirekey, 0);
   } else {
-    cout << "Algo '" << algo << "' wird nicht unterstützt" << endl;
+    spdlog::error("algorythm '" + algo + "' not supported");
     return false;
   }
   return true;
@@ -29,14 +31,14 @@ bool hexstr_to_desfirekey(string algo, string hexstr, MifareDESFireKey *desfirek
 
   // Zeichen prüfen
   if(plainhex.find_first_not_of("0123456789abcdefABCDEF") != string::npos){
-    cout << "Im Key ist nicht nur Hex" << endl;
+    spdlog::error("hexkey contains additional characters");
     return false;
   }
 
   if(algo == "3K3DES"){
     // Länge prüfen
     if(plainhex.length() != (ALGO_3K3DES_SIZE * 2)){
-      cout << "Key ist nicht " << ALGO_3K3DES_SIZE << " bytes lang";
+      spdlog::error("Key has to be " + to_string(ALGO_3K3DES_SIZE) + " bytes long");
       return false;
     }
 
@@ -51,7 +53,7 @@ bool hexstr_to_desfirekey(string algo, string hexstr, MifareDESFireKey *desfirek
 
     return true;
   } else {
-    cout << "Algo '" << algo << "' wird nicht unterstützt" << endl;
+    spdlog::error("algorythm '" + algo + "' not supported");
     return false;
   }
 }
@@ -88,22 +90,22 @@ int desfire_has_application(FreefareTag *tag, uint32_t lookup_aid) {
   MifareDESFireAID *aids = NULL;
   size_t aid_count;
   if (mifare_desfire_get_application_ids(*tag, &aids, &aid_count) < 0) {
-    cout << "Can't read DESFIRE applications.";
+    spdlog::error("Can't read DESFIRE applications.");
     return -1;
   }
 
   if (!aids) {
-    cout << "Can't interpret DESFIRE applications.";
+    spdlog::error("Can't interpret DESFIRE applications.");
     return -1;
   }
 
-  printf("found %zu applicaton/s\n", aid_count);
+  spdlog::info("found {} applicaton/s", aid_count);
 
   bool found = false;
 
   for (int i = 0; aids[i]; i++) {
     uint32_t int_aid = mifare_desfire_aid_get_aid(aids[i]);
-    printf("check %i == %i\n", int_aid, lookup_aid);
+    spdlog::debug("check {} == {}", int_aid, lookup_aid);
      if(int_aid == lookup_aid){
          found = true;
          break;

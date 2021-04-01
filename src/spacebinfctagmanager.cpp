@@ -9,6 +9,8 @@
 #include <boost/property_tree/ptree.hpp>
 #include <iostream>
 
+#include <spdlog/spdlog.h>
+
 #include "include/global.h"
 #include "include/mifareutils.h"
 #include "include/spacebicardstructs.h"
@@ -23,25 +25,23 @@ SpacebiNFCTagManager::SpacebiNFCTagManager(boost::property_tree::ptree *_keys) {
 }
 
 void SpacebiNFCTagManager::initNFC() {
-  cout << "init" << endl;
+  spdlog::trace("init spbi nfctagmanager");
 
   nfc_init(&context);
   if (context == NULL)
-    cout << "Unable to init libnfc (malloc)\n";
-
-  cout << "count" << endl;
+    spdlog::error("Unable to init libnfc (malloc)");
 
   device_count = nfc_list_devices(context, devices, 8);
   if (device_count <= 0)
-    cout << "No NFC device found.\n";
+    spdlog::error("No NFC device found");
 
-  cout << "open" << endl;
+  spdlog::trace("open devices");
 
   for (size_t d = 0; d < device_count; d++) {
-    cout << "open no" << d << endl;
+    spdlog::debug("open nfc dev #{}", d);
     device = nfc_open(context, devices[d]);
     if (!device) {
-      cout << "nfc_open() failed.";
+      spdlog::error("nfc_open() failed.");
       continue;
     }
   }
@@ -65,7 +65,7 @@ bool SpacebiNFCTagManager::tagPresent() {
       return true;
     }
   } else {
-    cout << "Error while tag reading\n";
+    spdlog::error("get tags error while tag reading");
     return false;
   }
 }
@@ -93,7 +93,7 @@ bool SpacebiNFCTagManager::getFirstPresentTag(FreefareTag **tag) {
       return true;
     }
   } else {
-    cout << "Error while tag reading\n";
+    spdlog::error("error while tag reading");
     return false;
   }
 }
@@ -101,7 +101,7 @@ bool SpacebiNFCTagManager::getFirstPresentTag(FreefareTag **tag) {
 bool SpacebiNFCTagManager::connectTag(FreefareTag tag) {
   // Verbindung zur Karte herstellen
   if (mifare_desfire_connect(tag) < 0) {
-    cout << "Can't connect to Mifare DESFire target.";
+    spdlog::error("can't connect to Mifare DESFire target");
     return false;
   }
 
@@ -111,7 +111,7 @@ bool SpacebiNFCTagManager::connectTag(FreefareTag tag) {
 bool SpacebiNFCTagManager::disconnectTag(FreefareTag tag) {
   // Verbindung von der Karte trennen
   if (mifare_desfire_disconnect(tag) < 0) {
-    cout << "Can't disconnect from Mifare DESFire target.";
+    spdlog::error("can't disconnect from Mifare DESFire target");
     return false;
   }
 
@@ -134,7 +134,7 @@ int SpacebiNFCTagManager::hasSpacebiApp(FreefareTag tag) {
 }
 
 bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key) {
-  cout << "preparing key " << keyno << endl;
+  spdlog::trace("preparing key #{}", keyno);
   // ?!?!  Wird zum Glück wegoptimiert
 
   string lookupalgo = DEF2STR(SPACEBIAPPID);
@@ -142,7 +142,7 @@ bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key) {
 
   boost::optional<string> algo = keys.get_optional<string>(lookupalgo);
   if (!algo) {
-    cout << "Algo not found" << endl;
+    spdlog::error("algorithm for app not found in keyfile");
     return false;
   }
 
@@ -156,19 +156,19 @@ bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key) {
 
     key_hexstr = keys.get_optional<string>(lookupkey);
     if (!key_hexstr) {
-      cout << "Key '" << lookupkey << "'not found" << endl;
+      spdlog::error("key '{}' not found", lookupkey);
       return false;
     }
   }
 
   if (keyno < 0) {
     if (!null_desfirekey(algo.get(), key)) {
-      cout << "Cannot build null desfirekey" << endl;
+      spdlog::error("cannot build null desfirekey");
       return false;
     }
   } else {
     if (!hexstr_to_desfirekey(algo.get(), key_hexstr.get(), key)) {
-      cout << "Cannot build desfirekey" << endl;
+      spdlog::error("cannot build desfirekey");
       return false;
     }
   }
@@ -179,7 +179,7 @@ bool SpacebiNFCTagManager::prepareAppKey(int keyno, MifareDESFireKey *key) {
 bool SpacebiNFCTagManager::changeAppKey(FreefareTag tag, int keyno, MifareDESFireKey *fromkey, MifareDESFireKey *tokey) {
   int ret = mifare_desfire_change_key(tag, keyno, *tokey, *fromkey);
   if (ret < 0) {
-    cout << "Keychange " << keyno << " after create wasn't successful (" << to_string(ret) << ")" << endl;
+    spdlog::error("Keychange #{} after create wasn't successful ({})", keyno, ret);
     return false;
   }
 
@@ -191,19 +191,19 @@ bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno, bool usen
 
   if (usenullkey) {
     if (!prepareAppKey(-1, &key)) {
-      cout << "prepare key failed" << endl;
+      spdlog::error("prepare key failed");
       return false;
     }
   } else {
     if (!prepareAppKey(keyno, &key)) {
-      cout << "prepare key failed" << endl;
+      spdlog::error("prepare key failed");
       return false;
     }
   }
 
   // Anmelden
   if (mifare_desfire_authenticate(tag, keyno, key) < 0) {
-    cout << "login on app failed" << endl;
+    spdlog::error("login on app (keyno: {})failed", keyno);
     return false;
   }
 
@@ -215,7 +215,7 @@ bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno, bool usen
 bool SpacebiNFCTagManager::selectSpacebiApp(FreefareTag tag) {
   MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
   if (mifare_desfire_select_application(tag, aid) < 0) {
-    cout << "Select spacebi app failed" << endl;
+    spdlog::error("Select spacebi app failed");
     return false;
   }
 
@@ -235,7 +235,7 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
 
   uint8_t app_settings = MDAPP_SETTINGS(0, 1, 0, 1, 1);
   if (mifare_desfire_create_application_3k3des(tag, aid, app_settings, SPACEBIAPPKEYNUM) < 0) {
-    cout << "Create wasn't successful" << endl;
+    spdlog::error("Create wasn't successful");
     return false;
   }
 
@@ -245,10 +245,10 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
 
   // Mit null key anmelden
   if(!loginSpacebiApp(tag, 0, true)){
-    cout << "login with null key after create failed" << endl;
+    spdlog::error("login with null key after create failed");
     return false;
   } else {
-    cout << "login with null key after create ok" << endl;
+    spdlog::error("login with null key after create ok");
   }
 
   MifareDESFireKey nullkey;
@@ -284,7 +284,7 @@ bool SpacebiNFCTagManager::deleteSpacebiApp(FreefareTag tag) {
   MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
 
   if (!selectSpacebiApp(tag)) {
-    cout << "app select ist fehlgeschlagen" << endl;
+    spdlog::error("app select failed");
     return false;
   }
 
@@ -293,14 +293,14 @@ bool SpacebiNFCTagManager::deleteSpacebiApp(FreefareTag tag) {
       // Last-Resort: Versuchen wir den Login auf der PICC anwendung
       mifare_desfire_select_application(tag, mifare_desfire_aid_new(0));
       if (!loginSpacebiApp(tag, 0, true)) {
-        cout << "weder richtiger noch null-key hat funktioniert" << endl;
+        spdlog::error("weder richtiger noch null-key hat funktioniert");
         return false;
       }
     }
   }
 
   if (mifare_desfire_delete_application(tag, aid) < 0) {
-    cout << "löschen ist fehlgeschlagen" << endl;
+    spdlog::error("delete failed");
     return false;
   }
 
@@ -313,7 +313,7 @@ bool SpacebiNFCTagManager::readMetaFile(FreefareTag tag, spacebi_card_metainfofi
   }
 
   if (mifare_desfire_read_data(tag, FILENO_METADATA, 0, sizeof(spacebi_card_metainfofile_t), metafile) < 0) {
-    cout << "read from app failed" << endl;
+    spdlog::error("read from app failed");
     return false;
   }
 
@@ -325,12 +325,12 @@ bool SpacebiNFCTagManager::createMetaFile(FreefareTag tag, spacebi_card_metainfo
   uint16_t access = MDAR(KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_METADATA, MDCM_ENCIPHERED, access, sizeof(spacebi_card_metainfofile_t)) < 0) {
-    cout << "create doorfile failed" << endl;
+    spdlog::error("create metafile failed");
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_METADATA, 0, sizeof(spacebi_card_metainfofile_t), &metafile) < 0) {
-    cout << "write doorfile failed" << endl;
+    spdlog::error("write metafile failed");
     return false;
   }
 
@@ -343,7 +343,7 @@ bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t
   }
 
   if (mifare_desfire_read_data(tag, FILENO_DOORINFO, 0, sizeof(spacebi_card_doorfile_t), doorfile) < 0) {
-    cout << "read from app failed" << endl;
+    spdlog::error("read from app failed");
     return false;
   }
 
@@ -355,12 +355,12 @@ bool SpacebiNFCTagManager::createDoorFile(FreefareTag tag, spacebi_card_doorfile
   uint16_t access = MDAR(KEYNO_DOORREADER, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_DOORINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_doorfile_t)) < 0) {
-    cout << "create doorfile failed" << endl;
+    spdlog::error("create doorfile failed");
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_DOORINFO, 0, sizeof(spacebi_card_doorfile_t), &doorfile) < 0) {
-    cout << "write doorfile failed" << endl;
+    spdlog::error("write doorfile failed");
     return false;
   }
 
@@ -373,7 +373,7 @@ bool SpacebiNFCTagManager::readLDAPFile(FreefareTag tag, spacebi_card_ldapuserfi
   }
 
   if (mifare_desfire_read_data(tag, FILENO_LDAPINFO, 0, sizeof(spacebi_card_ldapuserfile_t), ldapfile) < 0) {
-    cout << "read from app failed" << endl;
+    spdlog::error("read ldapfile failed");
     return false;
   }
 
@@ -385,12 +385,12 @@ bool SpacebiNFCTagManager::createLDAPFile(FreefareTag tag, spacebi_card_ldapuser
   uint16_t access = MDAR(KEYNO_LDAPINFO, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_LDAPINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_ldapuserfile_t)) < 0) {
-    cout << "create ldapfile failed" << endl;
+    spdlog::error("create ldapfile failed");
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_LDAPINFO, 0, sizeof(spacebi_card_doorfile_t), &ldapfile) < 0) {
-    cout << "write ldapfile failed" << endl;
+    spdlog::error("write ldapfile failed");
     return false;
   }
 
@@ -428,7 +428,7 @@ bool SpacebiNFCTagManager::readRandomIDFile(FreefareTag tag, int id, spacebi_car
   }
 
   if (mifare_desfire_read_data(tag, fileno, 0, sizeof(spacebi_card_unique_randomfile_t), randomfile) < 0) {
-    cout << "read from app failed" << endl;
+    spdlog::error("read from app failed");
     return false;
   }
 
@@ -466,12 +466,12 @@ bool SpacebiNFCTagManager::createRandomIDFile(FreefareTag tag, int id, spacebi_c
   uint16_t access = MDAR(keyno, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
 
   if (mifare_desfire_create_std_data_file(tag, fileno, MDCM_ENCIPHERED, access, sizeof(spacebi_card_unique_randomfile_t)) < 0) {
-    cout << "create randomfile ID '" << id << "' F'" << fileno << "' failed" << endl;
+    spdlog::error("create randomfile ID '{}' F'{}' failed", id, fileno);
     return false;
   }
 
   if (mifare_desfire_write_data(tag, fileno, 0, sizeof(spacebi_card_unique_randomfile_t), &randomfile) < 0) {
-    cout << "write randomfile ID '" << id << "' F'" << fileno << "' failed" << endl;
+    spdlog::error("write randomfile ID '{}' F'{}' failed", id, fileno);
     return false;
   }
 
