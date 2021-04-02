@@ -1,7 +1,8 @@
 #include "include/utils.h"
 
-#include <inttypes.h>
+#include <spdlog/spdlog.h>
 
+#include <inttypes.h>
 #include <iostream>
 #include <regex>
 
@@ -27,4 +28,28 @@ uint64_t hexstr_to_uint64(string hexstr) {
   }
 
   return result;
+}
+
+bool hexstr_to_chararray(string hexstr, uint8_t *buff, size_t bufflen){
+  // whitespaces rausschmeißen
+  string plainhex = regex_replace(hexstr, regex("\\s"), "");
+
+  // Zeichen prüfen
+  if(plainhex.find_first_not_of("0123456789abcdefABCDEF") != string::npos){
+    spdlog::error("hexkey contains additional characters");
+    return false;
+  }
+
+  if(plainhex.length() != (bufflen * 2)){
+    spdlog::error("hexstr has to be " + to_string(bufflen * 2) + " chars long");
+    return false;
+  }
+
+  for (uint8_t i = 0; i < (bufflen * 2); i += 2) {
+    string byteString = plainhex.substr(i, 2);
+     *buff = (char) strtol(byteString.c_str(), NULL, 16);
+     buff++;
+  }
+  
+  return true;
 }
