@@ -162,6 +162,7 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
 }
 
 void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, SpacebiNFCTagManager tm, Cachemanager cm, Authenticator at) {
+  spdlog::trace("entered writer mode");
   auto timenow = std::chrono::system_clock::now();
 
   // Random initialisieren
@@ -173,15 +174,32 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   std::uniform_int_distribution<uint8_t> rand_8_distributor;
 
   // Metadaten vorbereiten
+  if(!vm.count("memberid")){
+    spdlog::error("memberid missing");
+  }
   spacebi_card_metainfofile_t meta;
   meta.issuedts = std::chrono::duration_cast<std::chrono::seconds>(timenow.time_since_epoch()).count();
   meta.memberid = vm["memberid"].as<int>();
   meta.reserved = 0xFFFF;
+  spdlog::trace("reading memberid from arg ({})", meta.memberid);
 
   // Türtoken vorbereiten
   spacebi_card_doorfile_t door;
-  for (uint8_t i = 0; i < sizeof(door.token); i++) {
-    door.token[i] = rand_8_distributor(rand_32_generator);
+  if(vm.count("doortoken")){
+    spdlog::trace("doortoken from arg present");
+
+    string doortoken_arg = vm["doortoken"].as<string>();
+    spdlog::trace("reading doortoken from arg '{}'", doortoken_arg);
+    if(hexstr_to_chararray(doortoken_arg, door.token, sizeof(door.token))){
+      spdlog::trace("converted doortoken from args");
+    } else {
+      spdlog::error("no doortoken");
+      exit(1);
+    }
+  } else {
+    for (uint8_t i = 0; i < sizeof(door.token); i++) {
+      door.token[i] = rand_8_distributor(rand_32_generator);
+    }
   }
 
   // LDAP Username vorbereiten
@@ -279,7 +297,7 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 int main(int argc, char *argv[]) {
 
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer");
+  desc.add_options()("help", "hilfe")("v", po::value<int>(), "verbose")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("doortoken", po::value<string>(), "doortoken for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer");
 
 
   po::variables_map vm;
@@ -291,7 +309,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-    spdlog::info("Startup");
+  if(vm.count("v")){
+    spdlog::set_level(spdlog::level::trace);
+    spdlog::trace("set verbose level ({})", vm.count("v"));
+  }
+  
+  spdlog::info("Startup");
 
   // Konfigurationsdaten lesen
   if (!vm.count("configfile")) {
@@ -356,7 +379,7 @@ int main(int argc, char *argv[]) {
   at.~Authenticator();
   cm.~Cachemanager();
 
-  tm.~SpacebiNFCTagManager();
+  //tm.~SpacebiNFCTagManager();
 
   return 0;
 }

@@ -10,6 +10,7 @@ constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7',
 
 extern string hex_str(unsigned char *data, int len);
 extern uint64_t hexstr_to_uint64(string hexstr);
+extern bool hexstr_to_chararray(string hexstr, uint8_t *buff, size_t bufflen);
 
 
 #endif
