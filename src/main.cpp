@@ -297,7 +297,7 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 int main(int argc, char *argv[]) {
 
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("v", po::value<int>(), "verbose")("mode", po::value<string>(), "Modus (door/info/writer)")("keyfile", po::value<string>(), "pfad zur keyfile")("configfile", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("doortoken", po::value<string>(), "doortoken for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer");
+  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("mode,m", po::value<string>(), "Modus (door/info/writer)")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("doortoken", po::value<string>(), "doortoken for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer");
 
 
   po::variables_map vm;
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
 
   if(vm.count("v")){
     spdlog::set_level(spdlog::level::trace);
-    spdlog::trace("set verbose level ({})", vm.count("v"));
+    spdlog::trace("set verbose level ({})", vm["verbose"].as<int>());
   }
   
   spdlog::info("Startup");
