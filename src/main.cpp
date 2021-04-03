@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if(vm.count("v")){
+  if(vm.count("verbose")){
     spdlog::set_level(spdlog::level::trace);
     spdlog::trace("set verbose level ({})", vm["verbose"].as<int>());
   }
