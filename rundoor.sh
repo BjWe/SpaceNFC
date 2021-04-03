@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./spacebinfcmanager --config ./conf/localconfig.ini --keyfile ./conf/debug.o --mode door --v 1
+./spacebinfcmanager -c ./conf/localconfig.ini -k ./conf/desfirekeys.ini -m door -v
