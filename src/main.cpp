@@ -145,6 +145,68 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
             }
           }
 
+          int credit;
+          if(tm.readCreditFile(*currentTag, &credit)){
+            cout << "==== Credit ====" << endl;
+            cout << to_string(credit) << " cents" << endl;
+            cout << "================" << endl;
+          }
+
+        } else {
+          spdlog::error("no spacebi app found");
+        }
+
+        // Tag wieder loslassen
+        tm.disconnectTag(*currentTag);
+      } else {
+        spdlog::error("tag not supported");
+      }
+    }
+
+  } else {
+    spdlog::error("no tag present");
+  }
+}
+
+void enterCreditMode(po::variables_map vm, SpacebiNFCTagManager tm) {
+  if (tm.tagPresent()) {
+    spdlog::info("tag present");
+
+    FreefareTag *currentTag = NULL;
+
+    // Den ersten Tag am Leser holen
+    // Pointer wird auf den Tag gesetzt
+    if (tm.getFirstPresentTag(&currentTag)) {
+      // Wird der Tag unterstützt?
+      if (tm.isTagSupported(*currentTag)) {
+        // Mit Desfire Karte verbinden
+        tm.connectTag(*currentTag);
+
+        // Ist auf dem Tag die SpaceBi App installiert?
+        if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
+          spdlog::info("SpacebiAPP found");
+
+          tm.selectSpacebiApp(*currentTag);
+
+          if(!vm.count("amount")){
+            spdlog::error("missing amount");
+            return;
+          }
+
+          int amount = vm["amount"].as<int>();
+          if(amount < 0){
+            tm.creditFileDecr(*currentTag, amount * -1);
+          } else {
+            tm.creditFileIncr(*currentTag, amount);
+          }
+
+          int credit;
+          if(tm.readCreditFile(*currentTag, &credit)){
+            cout << "==== Credit ====" << endl;
+            cout << to_string(credit) << " cents" << endl;
+            cout << "================" << endl;
+          }
+
         } else {
           spdlog::error("no spacebi app found");
         }
@@ -224,6 +286,11 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   rid[2].randomid = rand_64_distributor(rand_64_generator);
   rid[3].randomid = rand_64_distributor(rand_64_generator);
 
+  int creditval = 0;
+  if(vm.count("amount")){
+    creditval = vm["amount"].as<int>();
+  }
+
   if (tm.tagPresent()) {
     spdlog::info("Tag present");
 
@@ -265,6 +332,9 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
             tm.createRandomIDFile(*currentTag, i, rid[i]);
           }
 
+          tm.createCreditFile(*currentTag, creditval, 0, 20000);
+
+
           dump_metainfofile(meta);
           dump_doorfile(door);
           dump_ldapuserfile(ldap);
@@ -297,7 +367,7 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 int main(int argc, char *argv[]) {
 
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("mode,m", po::value<string>(), "Modus (door/info/writer)")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("doortoken", po::value<string>(), "doortoken for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer");
+  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("mode,m", po::value<string>(), "Modus (door/info/writer/credit)")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("doortoken", po::value<string>(), "doortoken for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer")("amount", po::value<int>(), "amount for creditfile");
 
 
   po::variables_map vm;
@@ -370,6 +440,8 @@ int main(int argc, char *argv[]) {
     enterDoorReaderMode(config, tm, cm, at);
   } else if (runmode == "info") {
     enterInfoReaderMode(tm);
+  } else if (runmode == "credit") {
+    enterCreditMode(vm, tm);
   } else if (runmode == "writer") {
     enterWriterMode(vm, config, tm, cm, at);
   } else {
