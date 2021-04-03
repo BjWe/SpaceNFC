@@ -4,12 +4,11 @@
 
 #include <freefare.h>
 #include <nfc/nfc.h>
+#include <spdlog/spdlog.h>
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <iostream>
-
-#include <spdlog/spdlog.h>
 
 #include "include/global.h"
 #include "include/mifareutils.h"
@@ -242,9 +241,8 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
   // App auswählen
   mifare_desfire_select_application(tag, aid);
 
-
   // Mit null key anmelden
-  if(!loginSpacebiApp(tag, 0, true)){
+  if (!loginSpacebiApp(tag, 0, true)) {
     spdlog::error("login with null key after create failed");
     return false;
   } else {
@@ -254,7 +252,7 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
   MifareDESFireKey nullkey;
   prepareAppKey(-1, &nullkey);
 
-  // Application Keys erzeugen  
+  // Application Keys erzeugen
   MifareDESFireKey appkeys[SPACEBIAPPKEYNUM];
   for (uint8_t i = 0; i < SPACEBIAPPKEYNUM; i++) {
     prepareAppKey(i, &appkeys[i]);
@@ -268,7 +266,6 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
     changeAppKey(tag, i - 1, &nullkey, &appkeys[i - 1]);
   }
   //changeAppKey(tag, 0, &nullkey, &appkeys[0]);
-
 
   // Speicher freigeben
   for (uint8_t i = 0; i < SPACEBIAPPKEYNUM; i++) {
@@ -459,9 +456,8 @@ bool SpacebiNFCTagManager::createRandomIDFile(FreefareTag tag, int id, spacebi_c
       fileno = FILENO_RANDOMUID4;
       break;
     }
-
   }
-  
+
   //                     READ. WRITE, READWRITE, CHANGEACCESS
   uint16_t access = MDAR(keyno, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
 
@@ -472,6 +468,100 @@ bool SpacebiNFCTagManager::createRandomIDFile(FreefareTag tag, int id, spacebi_c
 
   if (mifare_desfire_write_data(tag, fileno, 0, sizeof(spacebi_card_unique_randomfile_t), &randomfile) < 0) {
     spdlog::error("write randomfile ID '{}' F'{}' failed", id, fileno);
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::readCreditFile(FreefareTag tag, int *credit) {
+  spdlog::trace("read credit");
+  if (!loginSpacebiApp(tag, KEYNO_CREDIT_RD, false)) {
+    return false;
+  }
+
+  
+  mifare_desfire_file_settings fs;
+  mifare_desfire_get_file_settings(tag, FILENO_CREDITS, &fs);
+  spdlog::info("limited credit value is: {}", fs.settings.value_file.limited_credit_value);
+  spdlog::info("credit limits:({}/{})", fs.settings.value_file.lower_limit, fs.settings.value_file.upper_limit);
+  
+
+  if (mifare_desfire_get_value(tag, FILENO_CREDITS, credit) < 0) {
+    spdlog::error("read credit failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::createCreditFile(FreefareTag tag, int credit, int lower_limit, int upper_limit) {
+  spdlog::trace("create credit: {} ({}/{})", credit, lower_limit, upper_limit);
+  //                     READ. WRITE, READWRITE, CHANGEACCESS
+  uint16_t access = MDAR(KEYNO_CREDIT_RD, KEYNO_CREDIT_WR, KEYNO_CREDIT_RW, KEYNO_APPMASTER);
+
+  if (mifare_desfire_create_value_file(tag, FILENO_CREDITS, MDCM_ENCIPHERED, access, lower_limit, upper_limit, credit, 1) < 0) {
+    spdlog::error("create credit failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::creditFileIncrLimited(FreefareTag tag, int amount) {
+  spdlog::debug("incr credit by {}", amount);
+
+  if (!loginSpacebiApp(tag, KEYNO_CREDIT_WR, false)) {
+    return false;
+  }
+
+  if (mifare_desfire_limited_credit(tag, FILENO_CREDITS, amount) < 0) {
+    spdlog::error("incr credit failed");
+    return false;
+  }
+
+  if (mifare_desfire_commit_transaction(tag) < 0) {
+    spdlog::error("incr credit commit failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::creditFileIncr(FreefareTag tag, int amount) {
+  spdlog::debug("incr credit by {}", amount);
+
+  if (!loginSpacebiApp(tag, KEYNO_CREDIT_RW, false)) {
+    return false;
+  }
+
+  if (mifare_desfire_credit(tag, FILENO_CREDITS, amount) < 0) {
+    spdlog::error("incr credit failed");
+    return false;
+  }
+
+  if (mifare_desfire_commit_transaction(tag) < 0) {
+    spdlog::error("incr credit commit failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::creditFileDecr(FreefareTag tag, int amount) {
+  spdlog::debug("decr credit by {}", amount);
+
+  if (!loginSpacebiApp(tag, KEYNO_CREDIT_WR, false)) {
+    return false;
+  }
+
+  if (mifare_desfire_debit(tag, FILENO_CREDITS, amount) < 0) {
+    spdlog::error("decr credit failed");
+    return false;
+  }
+
+  if (mifare_desfire_commit_transaction(tag) < 0) {
+    spdlog::error("decr credit commit failed");
     return false;
   }
 

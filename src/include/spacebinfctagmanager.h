@@ -59,6 +59,11 @@ class SpacebiNFCTagManager {
   bool readRandomIDFile(FreefareTag tag, int id, spacebi_card_unique_randomfile_t *randomfile);
   bool createRandomIDFile(FreefareTag tag, int id, spacebi_card_unique_randomfile_t randomfile);
 
+  bool readCreditFile(FreefareTag tag, int *credit);
+  bool createCreditFile(FreefareTag tag, int credit, int lower_limit, int upper_limit);
+  bool creditFileIncrLimited(FreefareTag tag, int amount);
+  bool creditFileIncr(FreefareTag tag, int amount);
+  bool creditFileDecr(FreefareTag tag, int amount);
 };
 
 #endif
