@@ -1,22 +1,19 @@
 
+#include <spdlog/spdlog.h>
+
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-
-
 #include <chrono>
 #include <iostream>
 #include <random>
-
-#include <spdlog/spdlog.h>
 
 #include "include/authenticator.h"
 #include "include/cachemanager.h"
 #include "include/spacebinfctagmanager.h"
 
 using namespace std;
-
 
 namespace po = boost::program_options;
 
@@ -93,78 +90,78 @@ void enterDoorReaderMode(boost::property_tree::ptree config, SpacebiNFCTagManage
 }
 
 void enterInfoReaderMode(SpacebiNFCTagManager tm) {
-  if (tm.tagPresent()) {
-    spdlog::info("tag present");
+  spdlog::trace("enter info reader mode");
+  while (!tm.tagPresent()) {
+    spdlog::info("waiting for tag");
+    sleep(2);
+  }
+  spdlog::info("tag present");
 
-    FreefareTag *currentTag = NULL;
+  FreefareTag *currentTag = NULL;
 
-    // Den ersten Tag am Leser holen
-    // Pointer wird auf den Tag gesetzt
-    if (tm.getFirstPresentTag(&currentTag)) {
-      // Wird der Tag unterstützt?
-      if (tm.isTagSupported(*currentTag)) {
-        // Mit Desfire Karte verbinden
-        tm.connectTag(*currentTag);
+  // Den ersten Tag am Leser holen
+  // Pointer wird auf den Tag gesetzt
+  if (tm.getFirstPresentTag(&currentTag)) {
+    // Wird der Tag unterstützt?
+    if (tm.isTagSupported(*currentTag)) {
+      // Mit Desfire Karte verbinden
+      tm.connectTag(*currentTag);
 
-        // Ist auf dem Tag die SpaceBi App installiert?
-        if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
-          spdlog::info("SpacebiAPP found");
+      // Ist auf dem Tag die SpaceBi App installiert?
+      if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
+        spdlog::info("SpacebiAPP found");
 
-          tm.selectSpacebiApp(*currentTag);
+        tm.selectSpacebiApp(*currentTag);
 
-          // Meta lesen
-          spacebi_card_metainfofile_t infofile;
-          if (tm.readMetaFile(*currentTag, &infofile)) {
-            dump_metainfofile(infofile);
-          } else {
-            spdlog::error("infofile cannot be read");
-          }
-
-          // Türtoken lesen
-          spacebi_card_doorfile_t doorfile;
-          if (tm.readDoorFile(*currentTag, &doorfile)) {
-            dump_doorfile(doorfile);
-          } else {
-            spdlog::error("doorfile cannot be read");
-          }
-
-          // LDAP lesen
-          spacebi_card_ldapuserfile_t ldapfile;
-          if (tm.readLDAPFile(*currentTag, &ldapfile)) {
-            dump_ldapuserfile(ldapfile);
-          } else {
-            spdlog::error("LDAPFile cannot be read");
-          }
-
-          for (uint8_t i = 1; i <= 4; i++) {
-            spacebi_card_unique_randomfile_t randfile;
-            if (tm.readRandomIDFile(*currentTag, i, &randfile)) {
-              dump_uniquerandomfile(randfile);
-            } else {
-              spdlog::error("randfile #{} cannot be read", i);
-            }
-          }
-
-          int credit;
-          if(tm.readCreditFile(*currentTag, &credit)){
-            cout << "==== Credit ====" << endl;
-            cout << to_string(credit) << " cents" << endl;
-            cout << "================" << endl;
-          }
-
+        // Meta lesen
+        spacebi_card_metainfofile_t infofile;
+        if (tm.readMetaFile(*currentTag, &infofile)) {
+          dump_metainfofile(infofile);
         } else {
-          spdlog::error("no spacebi app found");
+          spdlog::error("infofile cannot be read");
         }
 
-        // Tag wieder loslassen
-        tm.disconnectTag(*currentTag);
-      } else {
-        spdlog::error("tag not supported");
-      }
-    }
+        // Türtoken lesen
+        spacebi_card_doorfile_t doorfile;
+        if (tm.readDoorFile(*currentTag, &doorfile)) {
+          dump_doorfile(doorfile);
+        } else {
+          spdlog::error("doorfile cannot be read");
+        }
 
-  } else {
-    spdlog::error("no tag present");
+        // LDAP lesen
+        spacebi_card_ldapuserfile_t ldapfile;
+        if (tm.readLDAPFile(*currentTag, &ldapfile)) {
+          dump_ldapuserfile(ldapfile);
+        } else {
+          spdlog::error("LDAPFile cannot be read");
+        }
+
+        for (uint8_t i = 1; i <= 4; i++) {
+          spacebi_card_unique_randomfile_t randfile;
+          if (tm.readRandomIDFile(*currentTag, i, &randfile)) {
+            dump_uniquerandomfile(randfile);
+          } else {
+            spdlog::error("randfile #{} cannot be read", i);
+          }
+        }
+
+        int credit;
+        if (tm.readCreditFile(*currentTag, &credit)) {
+          cout << "==== Credit ====" << endl;
+          cout << to_string(credit) << " cents" << endl;
+          cout << "================" << endl;
+        }
+
+      } else {
+        spdlog::error("no spacebi app found");
+      }
+
+      // Tag wieder loslassen
+      tm.disconnectTag(*currentTag);
+    } else {
+      spdlog::error("tag not supported");
+    }
   }
 }
 
@@ -188,20 +185,20 @@ void enterCreditMode(po::variables_map vm, SpacebiNFCTagManager tm) {
 
           tm.selectSpacebiApp(*currentTag);
 
-          if(!vm.count("amount")){
+          if (!vm.count("amount")) {
             spdlog::error("missing amount");
             return;
           }
 
           int amount = vm["amount"].as<int>();
-          if(amount < 0){
+          if (amount < 0) {
             tm.creditFileDecr(*currentTag, amount * -1);
           } else {
             tm.creditFileIncr(*currentTag, amount);
           }
 
           int credit;
-          if(tm.readCreditFile(*currentTag, &credit)){
+          if (tm.readCreditFile(*currentTag, &credit)) {
             cout << "==== Credit ====" << endl;
             cout << to_string(credit) << " cents" << endl;
             cout << "================" << endl;
@@ -236,7 +233,7 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   std::uniform_int_distribution<uint8_t> rand_8_distributor;
 
   // Metadaten vorbereiten
-  if(!vm.count("memberid")){
+  if (!vm.count("memberid")) {
     spdlog::error("memberid missing");
   }
   spacebi_card_metainfofile_t meta;
@@ -247,12 +244,12 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
 
   // Türtoken vorbereiten
   spacebi_card_doorfile_t door;
-  if(vm.count("doortoken")){
+  if (vm.count("doortoken")) {
     spdlog::trace("doortoken from arg present");
 
     string doortoken_arg = vm["doortoken"].as<string>();
     spdlog::trace("reading doortoken from arg '{}'", doortoken_arg);
-    if(hexstr_to_chararray(doortoken_arg, door.token, sizeof(door.token))){
+    if (hexstr_to_chararray(doortoken_arg, door.token, sizeof(door.token))) {
       spdlog::trace("converted doortoken from args");
     } else {
       spdlog::error("no doortoken");
@@ -287,88 +284,88 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   rid[3].randomid = rand_64_distributor(rand_64_generator);
 
   int creditval = 0;
-  if(vm.count("amount")){
+  if (vm.count("amount")) {
     creditval = vm["amount"].as<int>();
   }
 
-  if (tm.tagPresent()) {
-    spdlog::info("Tag present");
+  spdlog::trace("enter info reader mode");
+  while (!tm.tagPresent()) {
+    spdlog::info("waiting for tag");
+    sleep(2);
+  }
 
-    FreefareTag *currentTag = NULL;
+  spdlog::info("Tag present");
 
-    // Den ersten Tag am Leser holen
-    // Pointer wird auf den Tag gesetzt
-    if (tm.getFirstPresentTag(&currentTag)) {
-      // Wird der Tag unterstützt?
-      if (tm.isTagSupported(*currentTag)) {
-        // Mit Desfire Karte verbinden
-        tm.connectTag(*currentTag);
+  FreefareTag *currentTag = NULL;
 
-        // Ist auf dem Tag die SpaceBi App installiert?
-        if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
-          spdlog::info("SpacebiAPP found");
+  // Den ersten Tag am Leser holen
+  // Pointer wird auf den Tag gesetzt
+  if (tm.getFirstPresentTag(&currentTag)) {
+    // Wird der Tag unterstützt?
+    if (tm.isTagSupported(*currentTag)) {
+      // Mit Desfire Karte verbinden
+      tm.connectTag(*currentTag);
 
-          // Die App wird nun gelöscht und neu angelegt
-          // Zuerst wird der bekannte Schlüssel benutzt, wenn das
-          // Fehlschlägt, wird der NULLKEY versucht
-          if (tm.deleteSpacebiApp(*currentTag)) {
-            spdlog::info("Delete OK");
+      // Ist auf dem Tag die SpaceBi App installiert?
+      if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
+        spdlog::info("SpacebiAPP found");
 
-          } else {
-            spdlog::error("Delete failed");
-          }
-
-        } else {
-          spdlog::info("No SpaicebiApp");
-        }
-
-        tm.createSpacebiApp(*currentTag);
-        if (tm.loginSpacebiApp(*currentTag, 0, false)) {
-          // Daten anlegen
-          tm.createMetaFile(*currentTag, meta);
-          tm.createDoorFile(*currentTag, door);
-          tm.createLDAPFile(*currentTag, ldap);
-          for (uint8_t i = 1; i <= 4; i++) {
-            tm.createRandomIDFile(*currentTag, i, rid[i]);
-          }
-
-          tm.createCreditFile(*currentTag, creditval, 0, 20000);
-
-
-          dump_metainfofile(meta);
-          dump_doorfile(door);
-          dump_ldapuserfile(ldap);
-          dump_uniquerandomfile(rid[0]);
-          dump_uniquerandomfile(rid[1]);
-          dump_uniquerandomfile(rid[2]);
-          dump_uniquerandomfile(rid[3]);
-
-          if (vm.count("register")) {
-            at.registerUser(meta.memberid, hex_str(door.token, sizeof(door.token)), rid[0].randomid, rid[1].randomid);
-          }
+        // Die App wird nun gelöscht und neu angelegt
+        // Zuerst wird der bekannte Schlüssel benutzt, wenn das
+        // Fehlschlägt, wird der NULLKEY versucht
+        if (tm.deleteSpacebiApp(*currentTag)) {
+          spdlog::info("Delete OK");
 
         } else {
-          spdlog::error("relogin after create app failed");
+          spdlog::error("Delete failed");
         }
-
-        // Tag wieder loslassen
-        tm.disconnectTag(*currentTag);
 
       } else {
-        spdlog::error("tag not supported");
+        spdlog::info("No SpaicebiApp");
       }
-    }
 
-  } else {
-    spdlog::error("no tag present");
+      tm.createSpacebiApp(*currentTag);
+      if (tm.loginSpacebiApp(*currentTag, 0, false)) {
+        // Daten anlegen
+        tm.createMetaFile(*currentTag, meta);
+        tm.createDoorFile(*currentTag, door);
+        tm.createLDAPFile(*currentTag, ldap);
+        for (uint8_t i = 1; i <= 4; i++) {
+          tm.createRandomIDFile(*currentTag, i, rid[i]);
+        }
+
+        tm.createCreditFile(*currentTag, creditval, 0, 20000);
+
+        tm.createTransactionFile(*currentTag);
+
+        dump_metainfofile(meta);
+        dump_doorfile(door);
+        dump_ldapuserfile(ldap);
+        dump_uniquerandomfile(rid[0]);
+        dump_uniquerandomfile(rid[1]);
+        dump_uniquerandomfile(rid[2]);
+        dump_uniquerandomfile(rid[3]);
+
+        if (vm.count("register")) {
+          at.registerUser(meta.memberid, hex_str(door.token, sizeof(door.token)), rid[0].randomid, rid[1].randomid);
+        }
+
+      } else {
+        spdlog::error("relogin after create app failed");
+      }
+
+      // Tag wieder loslassen
+      tm.disconnectTag(*currentTag);
+
+    } else {
+      spdlog::error("tag not supported");
+    }
   }
 }
 
 int main(int argc, char *argv[]) {
-
   po::options_description desc("Alle Optionen");
   desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("mode,m", po::value<string>(), "Modus (door/info/writer/credit)")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("ldapusername", po::value<string>(), "ldapusername for writer")("memberid", po::value<int>(), "memberid for writer")("doortoken", po::value<string>(), "doortoken for writer")("rnd1", po::value<string>(), "rnd1 for writer")("rnd2", po::value<string>(), "rnd2 for writer")("register", po::value<string>(), "autoregister for writer")("amount", po::value<int>(), "amount for creditfile");
-
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -379,11 +376,11 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if(vm.count("verbose")){
+  if (vm.count("verbose")) {
     spdlog::set_level(spdlog::level::trace);
     spdlog::trace("set verbose level ({})", vm["verbose"].as<int>());
   }
-  
+
   spdlog::info("Startup");
 
   // Konfigurationsdaten lesen

@@ -64,6 +64,7 @@ class SpacebiNFCTagManager {
   bool creditFileIncrLimited(FreefareTag tag, int amount);
   bool creditFileIncr(FreefareTag tag, int amount);
   bool creditFileDecr(FreefareTag tag, int amount);
+  bool createTransactionFile(FreefareTag tag);
 };
 
 #endif
