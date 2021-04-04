@@ -27,6 +27,14 @@ typedef struct  __attribute__((packed)) {
   uint64_t randomid;
 } spacebi_card_unique_randomfile_t;
 
+typedef struct __attribute__((packed)) {
+  uint32_t id;
+  uint64_t datetime;
+  uint32_t flags;
+  uint32_t amount;
+  uint32_t balance;
+  uint64_t ean;
+} spacebi_card_transaction_record_t;
 
 // Convert
 
