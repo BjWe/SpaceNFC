@@ -46,8 +46,8 @@ inline static string doorfile_to_hexstring(spacebi_card_doorfile_t df){
 
 inline static void dump_metainfofile(spacebi_card_metainfofile_t mf){
   cout << "=== METAFILE ===" << endl;
-  cout << "Timestamp: " << mf.issuedts << endl;
-  cout << "Memberid: " << mf.memberid << endl;
+  cout << "Timestamp: " << to_string(mf.issuedts) << endl;
+  cout << "Memberid: " << to_string(mf.memberid) << endl;
   cout << "================" << endl;
 }
 
