@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./spacebinfcmanager --config ./conf/localconfig.ini --keyfile ./conf/debug.o --mode info
+./spacebinfcmanager --config ./conf/localconfig.ini --keyfile ./conf/desfirekeys.ini --mode info
