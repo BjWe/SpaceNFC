@@ -247,7 +247,7 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
     spdlog::error("login with null key after create failed");
     return false;
   } else {
-    spdlog::error("login with null key after create ok");
+    spdlog::info("login with null key after create ok");
   }
 
   MifareDESFireKey nullkey;
@@ -259,10 +259,12 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
     prepareAppKey(i, &appkeys[i]);
   }
 
-  // ===== Funktioniert anscheinend nicht überall !?!?!?!
   // Rückwärtsgang
   // Wenn Key 0 geändert wird müssen wir uns neu anmelden
-  // Kleine Tokens (bauform) haben hier ein Problem!
+  //
+  // Für den Fall, dass du hier zum debuggen vorbei schaust, weil sich
+  // die Schlüssel > 0 nicht ändern lassen: Schmeiß das China Token
+  // weg. Es ist kaputt...
   for (uint8_t i = SPACEBIAPPKEYNUM; i > 0; i--) {
     changeAppKey(tag, i - 1, &nullkey, &appkeys[i - 1]);
   }

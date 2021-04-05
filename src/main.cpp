@@ -1,4 +1,5 @@
 
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #include <spdlog/spdlog.h>
 
 #include <boost/filesystem.hpp>
@@ -375,6 +376,7 @@ int main(int argc, char *argv[]) {
     cout << desc << "\n";
     return 1;
   }
+
 
   if (vm.count("verbose")) {
     spdlog::set_level(spdlog::level::trace);
