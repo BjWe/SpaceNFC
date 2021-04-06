@@ -235,7 +235,7 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
   uint8_t app_settings = MDAPP_SETTINGS(0, 1, 0, 1, 1);
   int ret = mifare_desfire_create_application_3k3des(tag, aid, app_settings, SPACEBIAPPKEYNUM);
   if (ret < 0) {
-    spdlog::error("Create wasn't successful ({})", ret);
+    spdlog::error("Create wasn't successful ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -586,8 +586,42 @@ bool SpacebiNFCTagManager::createTransactionFile(FreefareTag tag) {
   //                     READ. WRITE, READWRITE, CHANGEACCESS
   uint16_t access = MDAR(KEYNO_CREDIT_RD, KEYNO_CREDIT_WR, KEYNO_CREDIT_RW, KEYNO_APPMASTER);
 
-  if (mifare_desfire_create_cyclic_record_file(tag, FILENO_CREDITS, MDCM_ENCIPHERED, access, sizeof(spacebi_card_transaction_record_t), SPACEBITRANSACTIONHISTORY) < 0) {
-    spdlog::error("create transactionfile failed");
+  if (mifare_desfire_create_cyclic_record_file(tag, FILENO_TRANSACTIONS, MDCM_ENCIPHERED, access, sizeof(spacebi_card_transaction_record_t), SPACEBITRANSACTIONHISTORY) < 0) {
+    spdlog::error("create transactionfile failed ({})", freefare_strerror(tag));
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::readTransaction(FreefareTag tag, int offset, spacebi_card_transaction_record_t *record) {
+  spdlog::trace("read transaction file");
+  if (!loginSpacebiApp(tag, KEYNO_CREDIT_RW, false)) {
+    return false;
+  }
+// FIXME
+  int ret = mifare_desfire_read_records(tag, FILENO_TRANSACTIONS, 0, 1, record);
+  if (ret < 0) {
+    spdlog::error("read transactionfile failed ({})", freefare_strerror(tag));
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::storeTransaction(FreefareTag tag, int offset, spacebi_card_transaction_record_t record) {
+  spdlog::trace("store transaction");
+  if (!loginSpacebiApp(tag, KEYNO_CREDIT_WR, false)) {
+    return false;
+  }
+
+  if (mifare_desfire_write_record(tag, FILENO_TRANSACTIONS, 0, sizeof(spacebi_card_transaction_record_t), &record) < 0) {
+    spdlog::error("add to transactionfile failed");
+    return false;
+  }
+
+  if (mifare_desfire_commit_transaction(tag) < 0) {
+    spdlog::error("store transaction commit failed");
     return false;
   }
 

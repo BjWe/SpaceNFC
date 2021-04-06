@@ -12,6 +12,7 @@
 
 #include "include/authenticator.h"
 #include "include/cachemanager.h"
+#include "include/global.h"
 #include "include/spacebinfctagmanager.h"
 
 using namespace std;
@@ -192,9 +193,20 @@ void enterCreditMode(po::variables_map vm, SpacebiNFCTagManager tm) {
           }
 
           int amount = vm["amount"].as<int>();
+
+          spacebi_card_transaction_record_t ctrans;
+          ctrans.amount = amount;
+          ctrans.balance = amount;
+          ctrans.ean = 0;
+          ctrans.id = 1;
+
+          if(!tm.storeTransaction(*currentTag, 0, ctrans)){
+            spdlog::error("store was not successful");
+          }
+
           if (amount < 0) {
             tm.creditFileDecr(*currentTag, amount * -1);
-          } else {
+          } else if (amount > 0) {
             tm.creditFileIncr(*currentTag, amount);
           }
 
@@ -202,6 +214,15 @@ void enterCreditMode(po::variables_map vm, SpacebiNFCTagManager tm) {
           if (tm.readCreditFile(*currentTag, &credit)) {
             cout << "==== Credit ====" << endl;
             cout << to_string(credit) << " cents" << endl;
+            cout << "================" << endl;
+          }
+
+          spacebi_card_transaction_record_t transactions[SPACEBITRANSACTIONHISTORY];
+          if (tm.readTransaction(*currentTag, 0, &transactions[0])) {
+            cout << "==== Transactions ====" << endl;
+            //for (uint8_t i = 0; i < SPACEBITRANSACTIONHISTORY; i++) {
+              dump_transaction(transactions[0]);
+            //}
             cout << "================" << endl;
           }
 
@@ -376,7 +397,6 @@ int main(int argc, char *argv[]) {
     cout << desc << "\n";
     return 1;
   }
-
 
   if (vm.count("verbose")) {
     spdlog::set_level(spdlog::level::trace);
