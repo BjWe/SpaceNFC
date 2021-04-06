@@ -9,7 +9,7 @@
 
 using namespace std;
 
-typedef struct  __attribute__((packed)) {
+typedef struct  __attribute__((packed, aligned(16))) {
   uint64_t issuedts;
   uint32_t memberid;
   uint32_t reserved;
@@ -69,6 +69,10 @@ inline static void dump_uniquerandomfile(spacebi_card_unique_randomfile_t rf){
   cout << "=== RANDFILE ===" << endl;
   printf("%" PRIx64 " / %" PRIu64, rf.randomid, rf.randomid);
   cout << endl << "================" << endl;
+}
+
+inline static void dump_transaction(spacebi_card_transaction_record_t tr){
+  cout << "Transaction: #" << to_string(tr.id) << " - " << to_string(tr.datetime) << " - EAN: " << tr.ean << " - Amount: " << to_string(tr.amount) << " - Balance: " << to_string(tr.balance) << endl;
 }
 
 #endif
