@@ -167,6 +167,51 @@ void enterInfoReaderMode(SpacebiNFCTagManager tm) {
   }
 }
 
+void enterFixMode(po::variables_map vm, SpacebiNFCTagManager tm) {
+  spdlog::trace("enter fix mode");
+  while (!tm.tagPresent()) {
+    spdlog::info("waiting for tag");
+    sleep(2);
+  }
+  spdlog::info("tag present");
+
+  FreefareTag *currentTag = NULL;
+
+  // Den ersten Tag am Leser holen
+  // Pointer wird auf den Tag gesetzt
+  if (tm.getFirstPresentTag(&currentTag)) {
+    // Wird der Tag unterstützt?
+    if (tm.isTagSupported(*currentTag)) {
+      // Mit Desfire Karte verbinden
+      tm.connectTag(*currentTag);
+
+      // Ist auf dem Tag die SpaceBi App installiert?
+      if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
+        spdlog::info("SpacebiAPP found");
+
+        tm.selectSpacebiApp(*currentTag);
+
+        // Meta lesen
+        spacebi_card_metainfofile_t infofile;
+        if (tm.readMetaFile(*currentTag, &infofile)) {
+          dump_metainfofile(infofile);
+        } else {
+          spdlog::error("infofile cannot be read");
+        }
+
+
+      } else {
+        spdlog::error("no spacebi app found");
+      }
+
+      // Tag wieder loslassen
+      tm.disconnectTag(*currentTag);
+    } else {
+      spdlog::error("tag not supported");
+    }
+  }
+}
+
 void enterCreditMode(po::variables_map vm, SpacebiNFCTagManager tm) {
   if (tm.tagPresent()) {
     spdlog::info("tag present");
@@ -261,7 +306,9 @@ void enterWriterMode(po::variables_map vm, boost::property_tree::ptree config, S
   spacebi_card_metainfofile_t meta;
   meta.issuedts = std::chrono::duration_cast<std::chrono::seconds>(timenow.time_since_epoch()).count();
   meta.memberid = vm["memberid"].as<int>();
+  meta.structureversion = CURRENTAPPSTRUCTUREVERSION;
   meta.reserved = 0xFFFF;
+
   spdlog::trace("reading memberid from arg ({})", meta.memberid);
 
   // Türtoken vorbereiten
@@ -459,6 +506,8 @@ int main(int argc, char *argv[]) {
     enterDoorReaderMode(config, tm, cm, at);
   } else if (runmode == "info") {
     enterInfoReaderMode(tm);
+  } else if (runmode == "info") {
+    enterFixMode(vm, tm);
   } else if (runmode == "credit") {
     enterCreditMode(vm, tm);
   } else if (runmode == "writer") {

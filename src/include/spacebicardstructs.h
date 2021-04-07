@@ -12,7 +12,8 @@ using namespace std;
 typedef struct  __attribute__((packed, aligned(16))) {
   uint64_t issuedts;
   uint32_t memberid;
-  uint32_t reserved;
+  uint16_t structureversion;
+  uint16_t reserved;
 } spacebi_card_metainfofile_t;
 
 typedef struct  __attribute__((packed)) {
