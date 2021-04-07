@@ -506,7 +506,7 @@ int main(int argc, char *argv[]) {
     enterDoorReaderMode(config, tm, cm, at);
   } else if (runmode == "info") {
     enterInfoReaderMode(tm);
-  } else if (runmode == "info") {
+  } else if (runmode == "fix") {
     enterFixMode(vm, tm);
   } else if (runmode == "credit") {
     enterCreditMode(vm, tm);
