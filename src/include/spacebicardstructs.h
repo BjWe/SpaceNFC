@@ -49,6 +49,7 @@ inline static void dump_metainfofile(spacebi_card_metainfofile_t mf){
   cout << "=== METAFILE ===" << endl;
   cout << "Timestamp: " << to_string(mf.issuedts) << endl;
   cout << "Memberid: " << to_string(mf.memberid) << endl;
+  cout << "StructVer: 0x" << hex_str((uint8_t *)&mf.structureversion, 2) << endl;
   cout << "================" << endl;
 }
 

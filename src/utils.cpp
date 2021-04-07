@@ -8,7 +8,7 @@
 
 using namespace std;
 
-string hex_str(unsigned char *data, int len) {
+string hex_str(uint8_t *data, int len) {
   string s(len * 2, ' ');
   for (int i = 0; i < len; ++i) {
     s[2 * i] = hexmap[(data[i] & 0xF0) >> 4];
