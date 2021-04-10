@@ -26,6 +26,7 @@ class SpaceRestApi {
       ~SpaceRestApi();
 
       void fetchInitDate(int memberid, ptree& data);
+      bool checkDoorAccess(string doortoken);
 
 };
 

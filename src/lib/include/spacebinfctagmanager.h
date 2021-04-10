@@ -50,6 +50,9 @@ class SpacebiNFCTagManager {
   bool readMetaFile(FreefareTag tag, spacebi_card_metainfofile_t *metafile);
   bool createMetaFile(FreefareTag tag, spacebi_card_metainfofile_t metafile);
   
+  bool readPersonalInfoFile(FreefareTag tag, spacebi_card_personalinfofile_t *personalfile);
+  bool createPersonalInfoFile(FreefareTag tag, spacebi_card_personalinfofile_t personalfile);
+
   bool readDoorFile(FreefareTag tag, spacebi_card_doorfile_t *doorfile);
   bool createDoorFile(FreefareTag tag, spacebi_card_doorfile_t doorfile);
 

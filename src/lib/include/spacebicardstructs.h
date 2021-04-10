@@ -65,7 +65,7 @@ typedef struct __attribute__((packed)) {
   uint32_t flags;
   uint32_t amount;
   uint32_t balance;
-  transaction_usage_e usage;
+  uint8_t usage;
   uint8_t reserved1;
   uint16_t reserved2;
 } spacebi_card_transaction_record_t;
@@ -163,19 +163,19 @@ inline static void dump_ldapuserfile(spacebi_card_ldapuserfile_t lf){
 
 inline static void dump_uniquerandomfile(spacebi_card_unique_randomfile_t rf){
   cout << "=== RANDFILE ===" << endl;
-  printf("%" PRIx64 " / %" PRIu64, rf.randomid, rf.randomid);
+  printf("%" PRIx64 "\n", rf.randomid);
   cout << endl << "================" << endl;
 }
 
 inline static void dump_creditmetafile(spacebi_card_creditmetafile_t cf){
   cout << "=== CREDITMETAFILE ===" << endl;
   cout << "Last transaction: " << to_string(cf.lasttransaction) << endl;
-  cout << "Userid: " << to_string(cf.userid) << endl;
+  printf("Userid: %" PRIx64 "\n", cf.userid);
   cout << "================" << endl;
 }
 
 inline static void dump_transaction(spacebi_card_transaction_record_t tr){
-  cout << "Transaction: #" << to_string(tr.id) << " - " << to_string(tr.timestamp) << " - Usage: " << transaction_usage_to_str(tr.usage) << " - Amount: " << to_string(tr.amount) << " - Balance: " << to_string(tr.balance) << endl;
+  cout << "Transaction: #" << to_string(tr.id) << " - " << to_string(tr.timestamp) << " - Usage: " << transaction_usage_to_str((transaction_usage_e) tr.usage) << " - Amount: " << to_string(tr.amount) << " - Balance: " << to_string(tr.balance) << endl;
 }
 
 #endif
