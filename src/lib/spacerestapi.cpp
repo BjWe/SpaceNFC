@@ -1,12 +1,11 @@
 #include "include/spacerestapi.h"
 
-#include <iostream>
-
 #include <spdlog/spdlog.h>
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/optional.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <iostream>
 
 #include "Poco/Exception.h"
 #include "Poco/Net/AcceptCertificateHandler.h"
@@ -46,8 +45,7 @@ void SpaceRestApi::setApiHeader(Poco::Net::HTTPRequest& req) {
   req.setContentType("application/json");
 }
 
-
-int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptree& dataout){
+int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptree& dataout) {
   string struri = buildUri(path);
   Poco::URI uri(struri);
 
@@ -56,20 +54,22 @@ int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptr
 
   request.setURI(uri.getPathAndQuery());
 
+  session.setTimeout(Poco::Timespan(2, 0));
+
   session.setKeepAlive(true);
   request.setKeepAlive(true);
 
   setApiHeader(request);
 
   request.setMethod(method);
-  if(method == Poco::Net::HTTPRequest::HTTP_POST){
+  if (method == Poco::Net::HTTPRequest::HTTP_POST) {
     std::stringstream outss;
     boost::property_tree::json_parser::write_json(outss, datain, false);
     request.setContentLength(outss.str().length());
     std::ostream& os = session.sendRequest(request);
     os << outss.str();
   } else {
-    session.sendRequest(request);  
+    session.sendRequest(request);
   }
 
   Poco::Net::HTTPResponse response;
@@ -81,18 +81,37 @@ int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptr
 }
 
 void SpaceRestApi::fetchInitDate(int memberid, ptree& data) {
-
   ptree datain;
   datain.add("memberid", memberid);
 
-  ptree dataout;
-
-  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/initdata", datain, dataout);
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/initdata", datain, data);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   std::stringstream ss;
-  boost::property_tree::json_parser::write_json(ss, dataout);
+  boost::property_tree::json_parser::write_json(ss, data);
+
   std::cout << ss.str() << std::endl;
+}
+
+bool SpaceRestApi::checkDoorAccess(string doortoken) {
+  ptree datain;
+  datain.add("token", doortoken);
+
+  ptree dataout;
+
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/doorcheck", datain, dataout);
+  spdlog::debug("HTTP Returncode: {}", returncode);
+
+  if (returncode != 200) {
+    return false;
+  }
+
+  auto access = dataout.get_optional<bool>("access");
+  if (access) {
+    return access.value();
+  }
+
+  return false;
 }
 
 /*

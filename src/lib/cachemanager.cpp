@@ -18,6 +18,9 @@ Cachemanager::Cachemanager(string databasefile) {
     sqlite3_close(db);
     exit(1);
   }
+
+  sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS \"doortokencache\"(\"token\" TEXT, \"access\" INTEGER, \"lastseen\" INTEGER);", NULL, NULL, NULL);
+  
 }
 
 Cachemanager::~Cachemanager() {

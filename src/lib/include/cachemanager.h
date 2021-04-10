@@ -5,6 +5,7 @@
 #include <sqlite3.h>
 using namespace std;
 
+
 class Cachemanager {
  protected:
    sqlite3 *db;
@@ -12,6 +13,7 @@ class Cachemanager {
   Cachemanager(string databasefile);
   ~Cachemanager();
   bool tokenInDB(string token);
+  bool hasAccess(string token);
   bool addToken(string token, bool access);
   bool updateToken(string token, bool access);
 };

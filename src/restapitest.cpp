@@ -56,5 +56,7 @@ int main(int argc, char *argv[]) {
   boost::property_tree::ptree userdata;
   rapi.fetchInitDate(10032, userdata);
 
+  cout << rapi.checkDoorAccess("a58864385626542e75d8ff756a676c72c3876a48e7f62d4c86a5d62c6f5e95a7") << endl;
+
   return 0;
 }

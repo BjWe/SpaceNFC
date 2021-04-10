@@ -317,7 +317,7 @@ bool SpacebiNFCTagManager::readMetaFile(FreefareTag tag, spacebi_card_metainfofi
   }
 
   if (mifare_desfire_read_data(tag, FILENO_METADATA, 0, sizeof(spacebi_card_metainfofile_t), metafile) < 0) {
-    spdlog::error("read from app failed");
+    spdlog::error("read metafile from app failed");
     return false;
   }
 
@@ -326,8 +326,7 @@ bool SpacebiNFCTagManager::readMetaFile(FreefareTag tag, spacebi_card_metainfofi
 
 bool SpacebiNFCTagManager::createMetaFile(FreefareTag tag, spacebi_card_metainfofile_t metafile) {
   spdlog::trace("going to create metafile");
-  //                     READ. WRITE, READWRITE, CHANGEACCESS
-  uint16_t access = MDAR(KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
+  uint16_t access = FACCESS_METADATA;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_METADATA, MDCM_ENCIPHERED, access, sizeof(spacebi_card_metainfofile_t)) < 0) {
     spdlog::error("create metafile failed");
@@ -336,6 +335,37 @@ bool SpacebiNFCTagManager::createMetaFile(FreefareTag tag, spacebi_card_metainfo
 
   if (mifare_desfire_write_data(tag, FILENO_METADATA, 0, sizeof(spacebi_card_metainfofile_t), &metafile) < 0) {
     spdlog::error("write metafile failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::readPersonalInfoFile(FreefareTag tag, spacebi_card_personalinfofile_t *personalfile) {
+  spdlog::trace("going to read from personalfile");
+  if (!loginSpacebiApp(tag, KEYNO_PERSONALINFO, false)) {
+    return false;
+  }
+
+  if (mifare_desfire_read_data(tag, FILENO_PERSONALINFO, 0, sizeof(spacebi_card_personalinfofile_t), personalfile) < 0) {
+    spdlog::error("read personalfile from app failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool SpacebiNFCTagManager::createPersonalInfoFile(FreefareTag tag, spacebi_card_personalinfofile_t personalfile) {
+  spdlog::trace("going to create personalfile");
+  uint16_t access = FACCESS_PERSONALINFO;
+
+  if (mifare_desfire_create_std_data_file(tag, FILENO_PERSONALINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_personalinfofile_t)) < 0) {
+    spdlog::error("create personalfile failed");
+    return false;
+  }
+
+  if (mifare_desfire_write_data(tag, FILENO_PERSONALINFO, 0, sizeof(spacebi_card_personalinfofile_t), &personalfile) < 0) {
+    spdlog::error("write personalfile failed");
     return false;
   }
 
@@ -358,8 +388,7 @@ bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t
 
 bool SpacebiNFCTagManager::createDoorFile(FreefareTag tag, spacebi_card_doorfile_t doorfile) {
   spdlog::trace("going to create doorfile");
-  //                     READ. WRITE, READWRITE, CHANGEACCESS
-  uint16_t access = MDAR(KEYNO_DOORREADER, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
+  uint16_t access = FACCESS_DOORINFO;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_DOORINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_doorfile_t)) < 0) {
     spdlog::error("create doorfile failed");
@@ -390,8 +419,7 @@ bool SpacebiNFCTagManager::readLDAPFile(FreefareTag tag, spacebi_card_ldapuserfi
 
 bool SpacebiNFCTagManager::createLDAPFile(FreefareTag tag, spacebi_card_ldapuserfile_t ldapfile) {
   spdlog::trace("going to create ldapfile");
-  //                     READ. WRITE, READWRITE, CHANGEACCESS
-  uint16_t access = MDAR(KEYNO_LDAPINFO, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
+  uint16_t access = FACCESS_LDAPINFO;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_LDAPINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_ldapuserfile_t)) < 0) {
     spdlog::error("create ldapfile failed");
@@ -449,31 +477,35 @@ bool SpacebiNFCTagManager::createRandomIDFile(FreefareTag tag, int id, spacebi_c
   spdlog::trace("going to create randomid file #{}", id);
   uint8_t keyno;
   uint8_t fileno;
+  uint16_t faccess;
   switch (id) {
     case 1: {
       keyno = KEYNO_RANDOMUID1;
       fileno = FILENO_RANDOMUID1;
+      faccess = FACCESS_RANDOMUID1;
       break;
     }
     case 2: {
       keyno = KEYNO_RANDOMUID2;
       fileno = FILENO_RANDOMUID2;
+      faccess = FACCESS_RANDOMUID2;
       break;
     }
     case 3: {
       keyno = KEYNO_RANDOMUID3;
       fileno = FILENO_RANDOMUID3;
+      faccess = FACCESS_RANDOMUID3;
       break;
     }
     case 4: {
       keyno = KEYNO_RANDOMUID4;
       fileno = FILENO_RANDOMUID4;
+      faccess = FACCESS_RANDOMUID4;
       break;
     }
   }
 
-  //                     READ. WRITE, READWRITE, CHANGEACCESS
-  uint16_t access = MDAR(keyno, KEYNO_APPMASTER, KEYNO_APPMASTER, KEYNO_APPMASTER);
+  uint16_t access = faccess;
 
   if (mifare_desfire_create_std_data_file(tag, fileno, MDCM_ENCIPHERED, access, sizeof(spacebi_card_unique_randomfile_t)) < 0) {
     spdlog::error("create randomfile ID '{}' F'{}' failed", id, fileno);
@@ -558,11 +590,10 @@ bool SpacebiNFCTagManager::readCreditFile(FreefareTag tag, int *credit) {
 
 bool SpacebiNFCTagManager::createCreditFile(FreefareTag tag, int credit, int lower_limit, int upper_limit) {
   spdlog::trace("create credit: {} ({}/{})", credit, lower_limit, upper_limit);
-  //                     READ. WRITE, READWRITE, CHANGEACCESS
-  uint16_t access = MDAR(KEYNO_CREDIT_RD, KEYNO_CREDIT_WR, KEYNO_CREDIT_RW, KEYNO_APPMASTER);
+  uint16_t access = FACCESS_CREDITS;
 
   if (mifare_desfire_create_value_file(tag, FILENO_CREDITS, MDCM_ENCIPHERED, access, lower_limit, upper_limit, credit, 1) < 0) {
-    spdlog::error("create credit failed");
+    spdlog::error("create credit failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -632,8 +663,7 @@ bool SpacebiNFCTagManager::creditFileDecr(FreefareTag tag, int amount) {
 
 bool SpacebiNFCTagManager::createTransactionFile(FreefareTag tag) {
   spdlog::trace("create transaction file");
-  //                     READ. WRITE, READWRITE, CHANGEACCESS
-  uint16_t access = MDAR(KEYNO_CREDIT_RD, KEYNO_CREDIT_WR, KEYNO_CREDIT_RW, KEYNO_APPMASTER);
+  uint16_t access = FACCESS_TRANSACTIONS;
 
   if (mifare_desfire_create_cyclic_record_file(tag, FILENO_TRANSACTIONS, MDCM_ENCIPHERED, access, sizeof(spacebi_card_transaction_record_t), SPACEBITRANSACTIONHISTORY) < 0) {
     spdlog::error("create transactionfile failed ({})", freefare_strerror(tag));
