@@ -28,7 +28,7 @@ class SpacebiNFCTagManager {
 
   nfc_context *context;
 
-  bool prepareAppKey(int keyno, MifareDESFireKey *key);
+  bool prepareAppKey(int keyno, uint8_t keyversion, MifareDESFireKey *key);
   bool changeAppKey(FreefareTag tag, int keyno, MifareDESFireKey *fromkey, MifareDESFireKey *tokey);
 
  public:
@@ -59,6 +59,10 @@ class SpacebiNFCTagManager {
   bool readRandomIDFile(FreefareTag tag, int id, spacebi_card_unique_randomfile_t *randomfile);
   bool createRandomIDFile(FreefareTag tag, int id, spacebi_card_unique_randomfile_t randomfile);
 
+  
+  bool readCreditMetaFile(FreefareTag tag, spacebi_card_creditmetafile_t *creditmetafile);
+  bool createCreditMetaFile(FreefareTag tag, spacebi_card_creditmetafile_t creditmetafile);
+  bool updateCreditMetaFile(FreefareTag tag, spacebi_card_creditmetafile_t creditmetafile);
   bool readCreditFile(FreefareTag tag, int *credit);
   bool createCreditFile(FreefareTag tag, int credit, int lower_limit, int upper_limit);
   bool creditFileIncrLimited(FreefareTag tag, int amount);

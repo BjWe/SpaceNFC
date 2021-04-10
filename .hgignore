@@ -1,9 +1,11 @@
 .vscode
-obj
+obj/.*\.o$
+obj/lib/.*\.o$
 cache/cache.db
-db
+db/users.db
 .*\.d$
 conf/localconfig.ini
 conf/desfirekeys.ini
 conf/desfiretestkeys.ini
-spacebinfcmanager
+Makefile.bak
+build/*

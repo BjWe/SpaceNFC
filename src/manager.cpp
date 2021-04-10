@@ -10,10 +10,10 @@
 #include <iostream>
 #include <random>
 
-#include "include/authenticator.h"
-#include "include/cachemanager.h"
-#include "include/global.h"
-#include "include/spacebinfctagmanager.h"
+#include "lib/include/authenticator.h"
+#include "lib/include/cachemanager.h"
+#include "lib/include/global.h"
+#include "lib/include/spacebinfctagmanager.h"
 
 using namespace std;
 
