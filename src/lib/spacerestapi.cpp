@@ -1,0 +1,137 @@
+#include "include/spacerestapi.h"
+
+#include <iostream>
+
+#include <spdlog/spdlog.h>
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/optional.hpp>
+
+#include "Poco/Exception.h"
+#include "Poco/Net/AcceptCertificateHandler.h"
+#include "Poco/Net/Context.h"
+#include "Poco/Net/HTTPRequest.h"
+#include "Poco/Net/HTTPResponse.h"
+#include "Poco/Net/HTTPSClientSession.h"
+#include "Poco/Net/HTTPSStreamFactory.h"
+#include "Poco/Net/HTTPStreamFactory.h"
+#include "Poco/Net/InvalidCertificateHandler.h"
+#include "Poco/Net/SSLManager.h"
+#include "Poco/StreamCopier.h"
+#include "Poco/URI.h"
+#include "Poco/URIStreamOpener.h"
+#include "boost/property_tree/json_parser.hpp"
+#include "boost/property_tree/ptree.hpp"
+
+using namespace std;
+using boost::property_tree::ptree;
+
+SpaceRestApi::SpaceRestApi(string endpoint, string apikey, string token) {
+  this->endpoint = endpoint;
+  this->apikey = apikey;
+  this->token = token;
+}
+
+SpaceRestApi::~SpaceRestApi() {
+}
+
+string SpaceRestApi::buildUri(string path) {
+  return "https://" + endpoint + path;
+}
+
+void SpaceRestApi::setApiHeader(Poco::Net::HTTPRequest& req) {
+  req.set("X-Api-Key", apikey);
+  req.set("X-Servicetoken", token);
+  req.setContentType("application/json");
+}
+
+
+int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptree& dataout){
+  string struri = buildUri(path);
+  Poco::URI uri(struri);
+
+  Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort());
+  Poco::Net::HTTPRequest request;
+
+  request.setURI(uri.getPathAndQuery());
+
+  session.setKeepAlive(true);
+  request.setKeepAlive(true);
+
+  setApiHeader(request);
+
+  request.setMethod(method);
+  if(method == Poco::Net::HTTPRequest::HTTP_POST){
+    std::stringstream outss;
+    boost::property_tree::json_parser::write_json(outss, datain, false);
+    request.setContentLength(outss.str().length());
+    std::ostream& os = session.sendRequest(request);
+    os << outss.str();
+  } else {
+    session.sendRequest(request);  
+  }
+
+  Poco::Net::HTTPResponse response;
+  istream& rs = session.receiveResponse(response);
+
+  boost::property_tree::read_json(rs, dataout);
+
+  return response.getStatus();
+}
+
+void SpaceRestApi::fetchInitDate(int memberid, ptree& data) {
+
+  ptree datain;
+  datain.add("memberid", memberid);
+
+  ptree dataout;
+
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/initdata", datain, dataout);
+  spdlog::debug("HTTP Returncode: {}", returncode);
+
+  std::stringstream ss;
+  boost::property_tree::json_parser::write_json(ss, dataout);
+  std::cout << ss.str() << std::endl;
+}
+
+/*
+void SpaceRestApi::fetchInitDate(int memberid, boost::property_tree::ptree& data) {
+  string struri = buildUri("/service/mifare/initdata");
+  Poco::URI uri(struri);
+
+  Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort());
+  Poco::Net::HTTPRequest request;
+
+  request.setURI(uri.getPathAndQuery());
+
+  session.setKeepAlive(true);
+  request.setKeepAlive(true);
+
+  setApiHeader(request);
+
+  request.setMethod(Poco::Net::HTTPRequest::HTTP_GET);
+  
+
+  string tosend = "{\"memberid\": 10032}";
+  request.setContentLength(tosend.length());
+
+  std::ostream& os = session.sendRequest(request);
+  os << tosend;
+
+  Poco::Net::HTTPResponse response;
+  istream& rs = session.receiveResponse(response);
+  string sResponseReason = string(response.getReason());
+  ostringstream oss;
+  Poco::StreamCopier::copyStream(rs, oss);
+  string sRet = oss.str();
+  std::cout << "Response Status : " << response.getStatus() << std::endl;
+
+  if (sResponseReason.compare("OK") == 0) {
+    printf("HTTPReponse OK :::  %s for <%s> \n", sResponseReason.c_str(), struri.c_str());
+  } else {
+    printf("HTTPReponse NOT OK ::  %s:<%s> for <%s> \n", sResponseReason.c_str(), sRet.c_str(), struri.c_str());
+    sRet = "";
+  }
+}
+*/

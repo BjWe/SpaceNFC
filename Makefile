@@ -5,17 +5,17 @@
 # Compiler settings - Can be customized.
 CC = g++
 CXXFLAGS = -std=c++11 -Wall -g
-LDFLAGS = -lnfc -lfreefare -lboost_program_options -lboost_filesystem -lboost_system -lsqlite3 
+LDFLAGS = -lnfc -lfreefare -lboost_program_options -lboost_filesystem -lboost_system -lsqlite3 -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation -lcrypto -lssl
 
 # Makefile settings - Can be customized.
-APPNAME = spacebinfcmanager
 EXT = .cpp
 SRCDIR = src
-OBJDIR = obj
+LIBDIR = src/lib
+OBJDIR = build/obj/lib
 
 ############## Do not change anything from here downwards! #############
-SRC = $(wildcard $(SRCDIR)/*$(EXT))
-OBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)/%.o)
+LIB = $(wildcard $(LIBDIR)/*$(EXT))
+OBJ = $(LIB:$(LIBDIR)/%$(EXT)=$(OBJDIR)/%.o)
 DEP = $(OBJ:$(OBJDIR)/%.o=%.d)
 # UNIX-based OS variables & settings
 RM = rm
@@ -23,27 +23,38 @@ DELOBJ = $(OBJ)
 # Windows OS variables & settings
 DEL = del
 EXE = .exe
-WDELOBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)\\%.o)
+WDELOBJ = $(LIB:$(LIBDIR)/%$(EXT)=$(OBJDIR)\\%.o)
 
 ########################################################################
 ####################### Targets beginning here #########################
 ########################################################################
 
-all: $(APPNAME)
+all: manager transactionreader exectransaction
 
-# Builds the app
-$(APPNAME): $(OBJ)
-	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+manager: build/obj/manager.o $(OBJ)
+	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
+
+transactionreader: build/obj/transactionreader.o $(OBJ)
+	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
+
+exectransaction: build/obj/exectransaction.o $(OBJ)
+	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
+
+restapitest: build/obj/restapitest.o $(OBJ)
+	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
 
 # Creates the dependecy rules
-%.d: $(SRCDIR)/%$(EXT)
+%.d: $(LIBDIR)/%$(EXT)
 	@$(CPP) $(CFLAGS) $< -MM -MT $(@:%.d=$(OBJDIR)/%.o) >$@
 
 # Includes all .h files
 -include $(DEP)
 
 # Building rule for .o files and its .c/.cpp in combination with all .h
-$(OBJDIR)/%.o: $(SRCDIR)/%$(EXT)
+build/obj/%.o: $(SRCDIR)/%$(EXT)
+	$(CC) $(CXXFLAGS) -o $@ -c $<
+
+$(OBJDIR)/%.o: $(LIBDIR)/%$(EXT)
 	$(CC) $(CXXFLAGS) -o $@ -c $<
 
 ################### Cleaning rules for Unix-based OS ###################
