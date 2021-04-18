@@ -47,6 +47,7 @@ void SpaceRestApi::setApiHeader(Poco::Net::HTTPRequest& req) {
 
 int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptree& dataout) {
   string struri = buildUri(path);
+  spdlog::trace("make {} http request to '{}'", method, struri);
   Poco::URI uri(struri);
 
   Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort());
@@ -74,6 +75,8 @@ int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptr
 
   Poco::Net::HTTPResponse response;
   istream& rs = session.receiveResponse(response);
+
+  spdlog::trace("request done. returncode: {}", response.getStatus());
 
   boost::property_tree::read_json(rs, dataout);
 
@@ -103,7 +106,7 @@ bool SpaceRestApi::checkDoorAccess(string doortoken) {
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   if (returncode != 200) {
-    return false;
+    throw returncode;
   }
 
   auto access = dataout.get_optional<bool>("access");

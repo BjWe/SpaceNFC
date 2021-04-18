@@ -2,19 +2,19 @@
 #define __AUTHENTICATOR_H_
 
 #include <iostream>
-#include <sqlite3.h>
+#include "spacerestapi.h"
 #include "cachemanager.h"
 
 using namespace std;
 
 class Authenticator {
  protected:
-   sqlite3 *db;
+   Cachemanager *cache;
+   SpaceRestApi *rapi;
  public:
-  Authenticator(string databasefile, Cachemanager cm);
+  Authenticator(SpaceRestApi &rapi, Cachemanager &cm);
   ~Authenticator();
   bool checkDoorToken(string token);
-  bool registerUser(int memberid, string doortoken, uint64_t rndid1, uint64_t rndid2);
 };
 
 #endif

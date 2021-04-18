@@ -28,6 +28,10 @@ class SpaceRestApi {
       void fetchInitDate(int memberid, ptree& data);
       bool checkDoorAccess(string doortoken);
 
+      string getEndpoint(){
+        return endpoint;
+      }
+
 };
 
 #endif

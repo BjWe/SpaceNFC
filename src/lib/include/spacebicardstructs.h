@@ -53,7 +53,7 @@ typedef struct  __attribute__((packed)) {
 } spacebi_card_unique_randomfile_t;
 
 typedef struct __attribute__((packed)) {
-  uint64_t userid;
+  uint8_t token[32];
   uint64_t lasttransaction;
   uint64_t reserved1;
   uint64_t reserved2;
@@ -170,7 +170,9 @@ inline static void dump_uniquerandomfile(spacebi_card_unique_randomfile_t rf){
 inline static void dump_creditmetafile(spacebi_card_creditmetafile_t cf){
   cout << "=== CREDITMETAFILE ===" << endl;
   cout << "Last transaction: " << to_string(cf.lasttransaction) << endl;
-  printf("Userid: %" PRIx64 "\n", cf.userid);
+  for(uint8_t i; i < 32; i++){
+    printf("%02x", cf.token[i]);
+  }
   cout << "================" << endl;
 }
 

@@ -29,7 +29,7 @@ WDELOBJ = $(LIB:$(LIBDIR)/%$(EXT)=$(OBJDIR)\\%.o)
 ####################### Targets beginning here #########################
 ########################################################################
 
-all: manager transactionreader exectransaction
+all: transactionreader exectransaction setuptag doorreader
 
 manager: build/obj/manager.o $(OBJ)
 	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
@@ -41,6 +41,9 @@ exectransaction: build/obj/exectransaction.o $(OBJ)
 	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
 
 setuptag: build/obj/setuptag.o $(OBJ)
+	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
+
+doorreader: build/obj/doorreader.o $(OBJ)
 	$(CC) $(CXXFLAGS) -o build/$@ $^ $(LDFLAGS)
 
 restapitest: build/obj/restapitest.o $(OBJ)

@@ -111,7 +111,11 @@ void writeTransaction(SpacebiNFCTagManager tm, boost::property_tree::ptree confi
   spacebi_card_creditmetafile_t creditmeta;
   init_creditmetafile(&creditmeta);
   creditmeta.lasttransaction = 0;
-  creditmeta.userid = hexstr_to_uint64(userdata.get<string>("snackcreditid"));
+  if (hexstr_to_chararray(userdata.get<string>("snackcreditid"), creditmeta.token, sizeof(creditmeta.token))) {
+    spdlog::trace("converted snackcreditid from hexstr");
+  } else {
+    spdlog::error("db provided snackcreditid is broken");
+  }
 
   int timeout = vm.count("timeout") ? vm["timeout"].as<uint32_t>() : DEFAULT_WAITFORTAG_TIMEOUT;
   while (!tm.tagPresent() & (timeout >= 0)) {

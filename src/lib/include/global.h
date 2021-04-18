@@ -7,6 +7,9 @@
 #define SPACEBIAPPKEYNUM 12
 #define SPACEBITRANSACTIONHISTORY 10
 
+//                                  Tag   Std  Min   Sek
+#define DEFAULT_CACHE_GRACE_PERIOD  60 *  24 *  60  * 60
+
 #define CURRENTAPPSTRUCTUREVERSION 0x0000
 
 #define DEFAULT_WAITFORTAG_TIMEOUT    30
