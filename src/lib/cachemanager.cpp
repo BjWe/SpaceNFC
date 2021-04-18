@@ -8,6 +8,8 @@
 #include <chrono>
 #include <iostream>
 
+#include "include/global.h"
+
 using namespace std;
 
 Cachemanager::Cachemanager(string databasefile) {
@@ -20,7 +22,7 @@ Cachemanager::Cachemanager(string databasefile) {
   }
 
   sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS \"doortokencache\"(\"token\" TEXT, \"access\" INTEGER, \"lastseen\" INTEGER);", NULL, NULL, NULL);
-  
+
 }
 
 Cachemanager::~Cachemanager() {
@@ -31,7 +33,7 @@ bool Cachemanager::tokenInDB(string token) {
   sqlite3_stmt *stmt;
 
   int rc;
-  rc = sqlite3_prepare_v2(db, "select count(*) from doortokens where token = ?", -1, &stmt, 0);
+  rc = sqlite3_prepare_v2(db, "select count(*) from doortokencache where token = ?", -1, &stmt, 0);
   if (rc != SQLITE_OK) {
     spdlog::error("sqlite prepare failed");
     return false;
@@ -42,9 +44,44 @@ bool Cachemanager::tokenInDB(string token) {
   //cout << rc << endl;
   if (rc == SQLITE_ROW) {
     int colcount = sqlite3_column_int(stmt, 0);
-    spdlog::debug("Found {}} entries", colcount);
+    spdlog::debug("Found {} entries", colcount);
 
     return colcount > 0;
+  } else {
+    spdlog::error("Error while searching");
+    return false;
+  }
+  return false;
+}
+
+bool Cachemanager::hasAccess(string token) {
+  sqlite3_stmt *stmt;
+
+  int rc;
+  rc = sqlite3_prepare_v2(db, "select * from doortokencache where token = ?", -1, &stmt, 0);
+  if (rc != SQLITE_OK) {
+    spdlog::error("sqlite prepare failed");
+    return false;
+  }
+
+  sqlite3_bind_text(stmt, 1, token.c_str(), -1, NULL);
+  rc = sqlite3_step(stmt);
+
+  if (rc == SQLITE_ROW) {
+    int access = sqlite3_column_int(stmt, 1);
+    int64_t lastseen = sqlite3_column_int64(stmt, 2);
+    spdlog::debug("Found entry access: {}  lastseen: {}", access, lastseen);
+
+    auto timenow = std::chrono::system_clock::now();
+    int64_t timestamp = std::chrono::duration_cast<std::chrono::seconds>(timenow.time_since_epoch()).count();
+
+    if((lastseen + DEFAULT_CACHE_GRACE_PERIOD) > timestamp){
+      updateToken(token, access);
+      return access == 1;
+    } else {
+      return false;
+    }
+
   } else {
     spdlog::error("Error while searching");
     return false;
@@ -56,7 +93,7 @@ bool Cachemanager::addToken(string token, bool access) {
   sqlite3_stmt *stmt;
 
   int rc;
-  rc = sqlite3_prepare_v2(db, "insert into doortokens VALUES (?, ?, ?)", -1, &stmt, 0);
+  rc = sqlite3_prepare_v2(db, "insert into doortokencache VALUES (?, ?, ?)", -1, &stmt, 0);
   if (rc != SQLITE_OK) {
     spdlog::error("Prepare failed");
     return false;
@@ -80,7 +117,7 @@ bool Cachemanager::updateToken(string token, bool access) {
   sqlite3_stmt *stmt;
 
   int rc;
-  rc = sqlite3_prepare_v2(db, "update doortokens set access = ?, lastseen = ? where token = ?", -1, &stmt, 0);
+  rc = sqlite3_prepare_v2(db, "update doortokencache set access = ?, lastseen = ? where token = ?", -1, &stmt, 0);
   if (rc != SQLITE_OK) {
     spdlog::error("Prepare failed");
     return false;
