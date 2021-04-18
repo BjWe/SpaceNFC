@@ -76,6 +76,11 @@ inline static string doorfile_to_hexstring(spacebi_card_doorfile_t df){
   return hex_str(&df.token[0], sizeof(df.token)); 
 }
 
+inline static string creditmetafile_to_hexstring(spacebi_card_creditmetafile_t cmf){
+  return hex_str(&cmf.token[0], sizeof(cmf.token)); 
+}
+
+
 inline static string randomuserid_to_hexstring(spacebi_card_unique_randomfile_t rf){
   return hex_str((uint8_t *)&rf.randomid, sizeof(rf.randomid)); 
 }
@@ -170,10 +175,11 @@ inline static void dump_uniquerandomfile(spacebi_card_unique_randomfile_t rf){
 inline static void dump_creditmetafile(spacebi_card_creditmetafile_t cf){
   cout << "=== CREDITMETAFILE ===" << endl;
   cout << "Last transaction: " << to_string(cf.lasttransaction) << endl;
+  cout << "Token: ";
   for(uint8_t i; i < 32; i++){
     printf("%02x", cf.token[i]);
   }
-  cout << "================" << endl;
+  cout << endl << "================" << endl;
 }
 
 inline static void dump_transaction(spacebi_card_transaction_record_t tr){

@@ -10,13 +10,15 @@
 #include <random>
 
 #include "lib/include/global.h"
+#include "lib/include/spacerestapi.h"
 #include "lib/include/spacebinfctagmanager.h"
+#include "lib/include/utils.h"
 
 using namespace std;
 
 namespace po = boost::program_options;
 
-void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm) {
+void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm, SpaceRestApi rapi) {
   boost::property_tree::ptree jsonout;
 
   int timeout = 10;
@@ -51,6 +53,10 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm) {
             spacebi_card_creditmetafile_t cmf;
             if (tm.readCreditMetaFile(*currentTag, &cmf)) {
               dump_creditmetafile(cmf);
+              string financetoken = creditmetafile_to_hexstring(cmf);
+
+              rapi.transmitSnackshopCart(financetoken, vm["cart"].as<vector<ProductAmountPair>>());
+
             } else {
               jsonout.add("error", "readfailed");
             }
@@ -79,18 +85,7 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm) {
        << ss.str() << "----END JSON----" << endl;
 }
 
-struct ProductAmountPair {
-  unsigned int id;
-  unsigned int amount;
-  ProductAmountPair(unsigned int id, unsigned int amount) {
-    this->id = id;
-    this->amount = amount;
-  }
 
-  friend std::ostream &operator<<(std::ostream &os, ProductAmountPair const &pp) {
-    return os << "PP(" << pp.id << "," << pp.amount << ")";
-  }
-};
 
 void validate(boost::any &v, const std::vector<std::string> &values, ProductAmountPair *, int) {
   //vector<ProductAmountPair> result = vector<ProductAmountPair>();
@@ -118,8 +113,8 @@ void validate(boost::any &v, const std::vector<std::string> &values, ProductAmou
 
 int main(int argc, char *argv[]) {
 
-  //
-  spdlog::set_level(spdlog::level::trace);
+  // Um den Validator zu testen
+  //spdlog::set_level(spdlog::level::trace);
 
   po::options_description desc("Alle Optionen");
   desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("cart", po::value<vector<ProductAmountPair>>()->multitoken(), "warenkorb positionen [id:anzahl, ]")("amount,a", po::value<int>(), "amount")("usage,u", po::value<string>(), "verwendung [deposit|payoff|refund|redeemvoucher|buysnack]");
@@ -131,14 +126,6 @@ int main(int argc, char *argv[]) {
   if (vm.count("help")) {
     cout << desc << "\n";
     return 1;
-  }
-
-  if (vm.count("cart")) {
-    auto cart = vm["cart"].as<vector<ProductAmountPair>>();
-    for (size_t i = 0; i < cart.size(); ++i) {
-      cout << cart[i] << "\n";
-    }
-    return 0;
   }
 
   if (vm.count("verbose")) {
@@ -183,7 +170,9 @@ int main(int argc, char *argv[]) {
   SpacebiNFCTagManager tm(&keys);
   tm.initNFC();
 
-  writeTransaction(tm, vm);
+  SpaceRestApi rapi(config.get<string>("spaceapi.endpoint"), config.get<string>("spaceapi.apikey"), config.get<string>("spaceapi.token"));
+
+  writeTransaction(tm, vm, rapi);
 
   //tm.~SpacebiNFCTagManager();
 

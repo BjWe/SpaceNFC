@@ -23,6 +23,8 @@
 #include "boost/property_tree/json_parser.hpp"
 #include "boost/property_tree/ptree.hpp"
 
+#include "include/utils.h"
+
 using namespace std;
 using boost::property_tree::ptree;
 
@@ -67,6 +69,9 @@ int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptr
     std::stringstream outss;
     boost::property_tree::json_parser::write_json(outss, datain, false);
     request.setContentLength(outss.str().length());
+
+    spdlog::trace("JSON to send: {}", outss.str());
+
     std::ostream& os = session.sendRequest(request);
     os << outss.str();
   } else {
@@ -103,6 +108,38 @@ bool SpaceRestApi::checkDoorAccess(string doortoken) {
   ptree dataout;
 
   int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/doorcheck", datain, dataout);
+  spdlog::debug("HTTP Returncode: {}", returncode);
+
+  if (returncode != 200) {
+    throw returncode;
+  }
+
+  auto access = dataout.get_optional<bool>("access");
+  if (access) {
+    return access.value();
+  }
+
+  return false;
+}
+
+bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart) {
+  
+  ptree datain;
+  datain.add("token", financetoken);
+
+  ptree products;
+  for(size_t i = 0; i < cart.size(); i++){
+    ptree entry;
+    entry.add("id", cart[i].id);
+    entry.add("amount", cart[i].amount);
+    products.push_back(make_pair("", entry));
+  }
+
+  datain.add_child("products", products);  
+
+  ptree dataout;
+
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/checkoutsnackshopcart", datain, dataout);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   if (returncode != 200) {
