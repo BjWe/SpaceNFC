@@ -8,6 +8,8 @@
 
 #include "Poco/Net/HTTPRequest.h"
 
+#include "utils.h"
+
 using namespace std;
 using boost::property_tree::ptree;
 
@@ -27,6 +29,7 @@ class SpaceRestApi {
 
       void fetchInitDate(int memberid, ptree& data);
       bool checkDoorAccess(string doortoken);
+      bool transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart);
 
       string getEndpoint(){
         return endpoint;

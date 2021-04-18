@@ -167,6 +167,9 @@ void writeTransaction(SpacebiNFCTagManager tm, boost::property_tree::ptree confi
               tm.createRandomIDFile(*currentTag, i, rid[i]);
             }
 
+            // Ummelden
+            //tm.loginSpacebiApp(*currentTag, KEYNO_CREDIT_RW, false);
+
             tm.createCreditMetaFile(*currentTag, creditmeta);
             tm.createCreditFile(*currentTag, 0, DEFAULT_CREDIT_MIN_VALUE, DEFAULT_CREDIT_MAX_VALUE);
             tm.createTransactionFile(*currentTag);

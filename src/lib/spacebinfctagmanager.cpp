@@ -204,7 +204,7 @@ bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno, bool usen
 
   // Anmelden
   if (mifare_desfire_authenticate(tag, keyno, key) < 0) {
-    spdlog::error("login on app (keyno: {})failed", keyno);
+    spdlog::error("login on app (keyno: {})failed ({})", keyno, freefare_strerror(tag));
     return false;
   }
 
@@ -216,7 +216,7 @@ bool SpacebiNFCTagManager::loginSpacebiApp(FreefareTag tag, int keyno, bool usen
 bool SpacebiNFCTagManager::selectSpacebiApp(FreefareTag tag) {
   MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
   if (mifare_desfire_select_application(tag, aid) < 0) {
-    spdlog::error("Select spacebi app failed");
+    spdlog::error("Select spacebi app failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -246,7 +246,7 @@ bool SpacebiNFCTagManager::createSpacebiApp(FreefareTag tag) {
 
   // Mit null key anmelden
   if (!loginSpacebiApp(tag, 0, true)) {
-    spdlog::error("login with null key after create failed");
+    spdlog::error("login with null key after create failed ({})", freefare_strerror(tag));
     return false;
   } else {
     spdlog::info("login with null key after create ok");
@@ -287,7 +287,7 @@ bool SpacebiNFCTagManager::deleteSpacebiApp(FreefareTag tag) {
   MifareDESFireAID aid = mifare_desfire_aid_new(SPACEBIAPPID);
 
   if (!selectSpacebiApp(tag)) {
-    spdlog::error("app select failed");
+    spdlog::error("app select failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -303,7 +303,7 @@ bool SpacebiNFCTagManager::deleteSpacebiApp(FreefareTag tag) {
   }
 
   if (mifare_desfire_delete_application(tag, aid) < 0) {
-    spdlog::error("delete failed");
+    spdlog::error("delete failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -317,7 +317,7 @@ bool SpacebiNFCTagManager::readMetaFile(FreefareTag tag, spacebi_card_metainfofi
   }
 
   if (mifare_desfire_read_data(tag, FILENO_METADATA, 0, sizeof(spacebi_card_metainfofile_t), metafile) < 0) {
-    spdlog::error("read metafile from app failed");
+    spdlog::error("read metafile from app failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -329,12 +329,12 @@ bool SpacebiNFCTagManager::createMetaFile(FreefareTag tag, spacebi_card_metainfo
   uint16_t access = FACCESS_METADATA;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_METADATA, MDCM_ENCIPHERED, access, sizeof(spacebi_card_metainfofile_t)) < 0) {
-    spdlog::error("create metafile failed");
+    spdlog::error("create metafile failed ({})", freefare_strerror(tag));
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_METADATA, 0, sizeof(spacebi_card_metainfofile_t), &metafile) < 0) {
-    spdlog::error("write metafile failed");
+    spdlog::error("write metafile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -348,7 +348,7 @@ bool SpacebiNFCTagManager::readPersonalInfoFile(FreefareTag tag, spacebi_card_pe
   }
 
   if (mifare_desfire_read_data(tag, FILENO_PERSONALINFO, 0, sizeof(spacebi_card_personalinfofile_t), personalfile) < 0) {
-    spdlog::error("read personalfile from app failed");
+    spdlog::error("read personalfile from app failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -360,12 +360,12 @@ bool SpacebiNFCTagManager::createPersonalInfoFile(FreefareTag tag, spacebi_card_
   uint16_t access = FACCESS_PERSONALINFO;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_PERSONALINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_personalinfofile_t)) < 0) {
-    spdlog::error("create personalfile failed");
+    spdlog::error("create personalfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_PERSONALINFO, 0, sizeof(spacebi_card_personalinfofile_t), &personalfile) < 0) {
-    spdlog::error("write personalfile failed");
+    spdlog::error("write personalfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -379,7 +379,7 @@ bool SpacebiNFCTagManager::readDoorFile(FreefareTag tag, spacebi_card_doorfile_t
   }
 
   if (mifare_desfire_read_data(tag, FILENO_DOORINFO, 0, sizeof(spacebi_card_doorfile_t), doorfile) < 0) {
-    spdlog::error("read from app failed");
+    spdlog::error("read from app failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -391,12 +391,12 @@ bool SpacebiNFCTagManager::createDoorFile(FreefareTag tag, spacebi_card_doorfile
   uint16_t access = FACCESS_DOORINFO;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_DOORINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_doorfile_t)) < 0) {
-    spdlog::error("create doorfile failed");
+    spdlog::error("create doorfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_DOORINFO, 0, sizeof(spacebi_card_doorfile_t), &doorfile) < 0) {
-    spdlog::error("write doorfile failed");
+    spdlog::error("write doorfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -410,7 +410,7 @@ bool SpacebiNFCTagManager::readLDAPFile(FreefareTag tag, spacebi_card_ldapuserfi
   }
 
   if (mifare_desfire_read_data(tag, FILENO_LDAPINFO, 0, sizeof(spacebi_card_ldapuserfile_t), ldapfile) < 0) {
-    spdlog::error("read ldapfile failed");
+    spdlog::error("read ldapfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -422,12 +422,12 @@ bool SpacebiNFCTagManager::createLDAPFile(FreefareTag tag, spacebi_card_ldapuser
   uint16_t access = FACCESS_LDAPINFO;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_LDAPINFO, MDCM_ENCIPHERED, access, sizeof(spacebi_card_ldapuserfile_t)) < 0) {
-    spdlog::error("create ldapfile failed");
+    spdlog::error("create ldapfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
   if (mifare_desfire_write_data(tag, FILENO_LDAPINFO, 0, sizeof(spacebi_card_ldapuserfile_t), &ldapfile) < 0) {
-    spdlog::error("write ldapfile failed");
+    spdlog::error("write ldapfile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -466,7 +466,7 @@ bool SpacebiNFCTagManager::readRandomIDFile(FreefareTag tag, int id, spacebi_car
   }
 
   if (mifare_desfire_read_data(tag, fileno, 0, sizeof(spacebi_card_unique_randomfile_t), randomfile) < 0) {
-    spdlog::error("read from app failed");
+    spdlog::error("read from app failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -527,7 +527,7 @@ bool SpacebiNFCTagManager::readCreditMetaFile(FreefareTag tag, spacebi_card_cred
   }
 
   if (mifare_desfire_read_data(tag, FILENO_CREDITMETA, 0, sizeof(spacebi_card_creditmetafile_t), creditmetafile) < 0) {
-    spdlog::error("read creditmetafile failed");
+    spdlog::error("read creditmetafile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -536,18 +536,22 @@ bool SpacebiNFCTagManager::readCreditMetaFile(FreefareTag tag, spacebi_card_cred
 
 bool SpacebiNFCTagManager::createCreditMetaFile(FreefareTag tag, spacebi_card_creditmetafile_t creditmetafile) {
   spdlog::trace("going to create creditmetafile");
-  //                    
+
+  loginSpacebiApp(tag, KEYNO_APPMASTER, false);                    
   uint16_t access = FACCESS_CREDITMETA;
 
   if (mifare_desfire_create_std_data_file(tag, FILENO_CREDITMETA, MDCM_ENCIPHERED, access, sizeof(spacebi_card_creditmetafile_t)) < 0) {
-    spdlog::error("create creditmetafile failed");
+    spdlog::error("create creditmetafile failed ({})", freefare_strerror(tag));
     return false;
   }
 
-  if (mifare_desfire_write_data(tag, FILENO_LDAPINFO, 0, sizeof(spacebi_card_creditmetafile_t), &creditmetafile) < 0) {
-    spdlog::error("write creditmetafile failed");
+  loginSpacebiApp(tag, KEYNO_CREDIT_RW, false); 
+  if (mifare_desfire_write_data(tag, FILENO_CREDITMETA, 0, sizeof(spacebi_card_creditmetafile_t), &creditmetafile) < 0) {
+    spdlog::error("write creditmetafile failed ({})", freefare_strerror(tag));
     return false;
   }
+
+  loginSpacebiApp(tag, KEYNO_APPMASTER, false); 
 
   return true;
 }
@@ -559,7 +563,7 @@ bool SpacebiNFCTagManager::updateCreditMetaFile(FreefareTag tag, spacebi_card_cr
   }
 
   if (mifare_desfire_write_data(tag, FILENO_CREDITMETA, 0, sizeof(spacebi_card_creditmetafile_t), &creditmetafile) < 0) {
-    spdlog::error("update creditmetafile failed");
+    spdlog::error("update creditmetafile failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -581,7 +585,7 @@ bool SpacebiNFCTagManager::readCreditFile(FreefareTag tag, int *credit) {
   
 
   if (mifare_desfire_get_value(tag, FILENO_CREDITS, credit) < 0) {
-    spdlog::error("read credit failed");
+    spdlog::error("read credit failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -591,6 +595,7 @@ bool SpacebiNFCTagManager::readCreditFile(FreefareTag tag, int *credit) {
 bool SpacebiNFCTagManager::createCreditFile(FreefareTag tag, int credit, int lower_limit, int upper_limit) {
   spdlog::trace("create credit: {} ({}/{})", credit, lower_limit, upper_limit);
   uint16_t access = FACCESS_CREDITS;
+
 
   if (mifare_desfire_create_value_file(tag, FILENO_CREDITS, MDCM_ENCIPHERED, access, lower_limit, upper_limit, credit, 1) < 0) {
     spdlog::error("create credit failed ({})", freefare_strerror(tag));
@@ -608,12 +613,12 @@ bool SpacebiNFCTagManager::creditFileIncrLimited(FreefareTag tag, int amount) {
   }
 
   if (mifare_desfire_limited_credit(tag, FILENO_CREDITS, amount) < 0) {
-    spdlog::error("incr credit failed");
+    spdlog::error("incr credit failed ({})", freefare_strerror(tag));
     return false;
   }
 
   if (mifare_desfire_commit_transaction(tag) < 0) {
-    spdlog::error("incr credit commit failed");
+    spdlog::error("incr credit commit failed ({})", freefare_strerror(tag));
     return false;
   }
 
@@ -628,12 +633,12 @@ bool SpacebiNFCTagManager::creditFileIncr(FreefareTag tag, int amount) {
   }
 
   if (mifare_desfire_credit(tag, FILENO_CREDITS, amount) < 0) {
-    spdlog::error("incr credit failed");
+    spdlog::error("incr credit failed ({})", freefare_strerror(tag));
     return false;
   }
 
   if (mifare_desfire_commit_transaction(tag) < 0) {
-    spdlog::error("incr credit commit failed");
+    spdlog::error("incr credit commit failed ({})", freefare_strerror(tag));
     return false;
   }
 
