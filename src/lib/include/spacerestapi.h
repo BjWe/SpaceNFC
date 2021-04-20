@@ -31,6 +31,7 @@ class SpaceRestApi {
       bool checkDoorAccess(string doortoken);
       bool transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart, double clientprice, ptree& dataout);
       bool fetchSnackshopTransactions(string financetoken, ptree& dataout);
+      bool redeemSnackshopVoucher(string financetoken, string code, ptree& dataout);
 
       string getEndpoint(){
         return endpoint;

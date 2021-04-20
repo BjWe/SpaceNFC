@@ -59,19 +59,32 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm, SpaceRestAp
               if (vm.count("cart")) {
                 if (vm.count("price")) {
                   ptree data;
-                  if(rapi.transmitSnackshopCart(financetoken, vm["cart"].as<vector<ProductAmountPair>>(), vm["price"].as<double>(), data)){
+                  if (rapi.transmitSnackshopCart(financetoken, vm["cart"].as<vector<ProductAmountPair>>(), vm["price"].as<double>(), data)) {
                     jsonout.add("error", "");
                     jsonout.add("oldBalance", data.get<double>("oldBalance"));
                     jsonout.add("newBalance", data.get<double>("newBalance"));
                   } else {
                     jsonout.add("error", data.get<string>("reason"));
                     spdlog::error("req failed");
-                  } 
+                  }
 
                 } else {
                   jsonout.add("error", "noprice");
                   spdlog::error("no clientprice provided");
                 }
+              } else if (vm.count("redeem")) {
+                ptree data;
+                if (rapi.redeemSnackshopVoucher(financetoken, vm["redeem"].as<string>(), data)) {
+                  jsonout.add("error", "");
+                  jsonout.add("oldBalance", data.get<double>("oldBalance"));
+                  jsonout.add("newBalance", data.get<double>("newBalance"));
+                } else {
+                  jsonout.add("error", data.get<string>("reason"));
+                  spdlog::error("req failed");
+                }
+              } else {
+                jsonout.add("error", "internalerror");
+                spdlog::error("no option");
               }
             } else {
               jsonout.add("error", "readfailed");
@@ -130,7 +143,7 @@ int main(int argc, char *argv[]) {
   //spdlog::set_level(spdlog::level::trace);
 
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("cart", po::value<vector<ProductAmountPair>>()->multitoken(), "warenkorb positionen [id:anzahl, ]")("price", po::value<double>(), "preis der dem client anzeigt wird")("amount,a", po::value<int>(), "amount")("usage,u", po::value<string>(), "verwendung [deposit|payoff|refund|redeemvoucher|buysnack]");
+  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("cart", po::value<vector<ProductAmountPair>>()->multitoken(), "warenkorb positionen [id:anzahl, ]")("price", po::value<double>(), "preis der dem client anzeigt wird")("redeem", po::value<string>(), "redeem code");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);

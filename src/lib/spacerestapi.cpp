@@ -173,43 +173,23 @@ bool SpaceRestApi::fetchSnackshopTransactions(string financetoken, ptree& dataou
   return false;  
 }
 
-/*
-void SpaceRestApi::fetchInitDate(int memberid, boost::property_tree::ptree& data) {
-  string struri = buildUri("/service/mifare/initdata");
-  Poco::URI uri(struri);
-
-  Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort());
-  Poco::Net::HTTPRequest request;
-
-  request.setURI(uri.getPathAndQuery());
-
-  session.setKeepAlive(true);
-  request.setKeepAlive(true);
-
-  setApiHeader(request);
-
-  request.setMethod(Poco::Net::HTTPRequest::HTTP_GET);
+bool SpaceRestApi::redeemSnackshopVoucher(string financetoken, string code, ptree& dataout){
   
+  ptree datain;
+  datain.add("token", financetoken);
+  datain.add("code", code);
 
-  string tosend = "{\"memberid\": 10032}";
-  request.setContentLength(tosend.length());
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/redeemsnackvoucher", datain, dataout);
+  spdlog::debug("HTTP Returncode: {}", returncode);
 
-  std::ostream& os = session.sendRequest(request);
-  os << tosend;
-
-  Poco::Net::HTTPResponse response;
-  istream& rs = session.receiveResponse(response);
-  string sResponseReason = string(response.getReason());
-  ostringstream oss;
-  Poco::StreamCopier::copyStream(rs, oss);
-  string sRet = oss.str();
-  std::cout << "Response Status : " << response.getStatus() << std::endl;
-
-  if (sResponseReason.compare("OK") == 0) {
-    printf("HTTPReponse OK :::  %s for <%s> \n", sResponseReason.c_str(), struri.c_str());
-  } else {
-    printf("HTTPReponse NOT OK ::  %s:<%s> for <%s> \n", sResponseReason.c_str(), sRet.c_str(), struri.c_str());
-    sRet = "";
+  if (returncode != 200) {
+    throw returncode;
   }
+
+  auto result = dataout.get_optional<bool>("result");
+  if (result) {
+    return result.value();
+  }
+
+  return false;  
 }
-*/
