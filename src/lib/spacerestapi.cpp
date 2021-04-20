@@ -153,6 +153,26 @@ bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmou
   return false;
 }
 
+bool SpaceRestApi::fetchSnackshopTransactions(string financetoken, ptree& dataout){
+  
+  ptree datain;
+  datain.add("token", financetoken);
+
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/snackshoptransactions", datain, dataout);
+  spdlog::debug("HTTP Returncode: {}", returncode);
+
+  if (returncode != 200) {
+    throw returncode;
+  }
+
+  auto result = dataout.get_optional<bool>("result");
+  if (result) {
+    return result.value();
+  }
+
+  return false;  
+}
+
 /*
 void SpaceRestApi::fetchInitDate(int memberid, boost::property_tree::ptree& data) {
   string struri = buildUri("/service/mifare/initdata");
