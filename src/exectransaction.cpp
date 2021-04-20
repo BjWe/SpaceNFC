@@ -10,8 +10,8 @@
 #include <random>
 
 #include "lib/include/global.h"
-#include "lib/include/spacerestapi.h"
 #include "lib/include/spacebinfctagmanager.h"
+#include "lib/include/spacerestapi.h"
 #include "lib/include/utils.h"
 
 using namespace std;
@@ -33,6 +33,7 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm, SpaceRestAp
     spdlog::warn("timeout tag read");
   } else {
     spdlog::info("tag present");
+    cout << "----TAG PRESENT----" << endl;
 
     FreefareTag *currentTag = NULL;
 
@@ -55,8 +56,23 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm, SpaceRestAp
               dump_creditmetafile(cmf);
               string financetoken = creditmetafile_to_hexstring(cmf);
 
-              rapi.transmitSnackshopCart(financetoken, vm["cart"].as<vector<ProductAmountPair>>());
+              if (vm.count("cart")) {
+                if (vm.count("price")) {
+                  ptree data;
+                  if(rapi.transmitSnackshopCart(financetoken, vm["cart"].as<vector<ProductAmountPair>>(), vm["price"].as<double>(), data)){
+                    jsonout.add("error", "");
+                    jsonout.add("oldBalance", data.get<double>("oldBalance"));
+                    jsonout.add("newBalance", data.get<double>("newBalance"));
+                  } else {
+                    jsonout.add("error", data.get<string>("reason"));
+                    spdlog::error("req failed");
+                  } 
 
+                } else {
+                  jsonout.add("error", "noprice");
+                  spdlog::error("no clientprice provided");
+                }
+              }
             } else {
               jsonout.add("error", "readfailed");
             }
@@ -85,23 +101,21 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm, SpaceRestAp
        << ss.str() << "----END JSON----" << endl;
 }
 
-
-
 void validate(boost::any &v, const std::vector<std::string> &values, ProductAmountPair *, int) {
   //vector<ProductAmountPair> result = vector<ProductAmountPair>();
   spdlog::trace("Validate Size: {}", values.size());
   for (size_t i = 0; i < values.size(); ++i) {
     spdlog::trace("Parse {}", values[i]);
     int pos = values[i].find(':');
-    if(pos < 1){
+    if (pos < 1) {
       throw "invalid cart";
     }
     string left = values[i].substr(0, pos);
     string right = values[i].substr(pos + 1, string::npos);
     spdlog::trace("Parse Cart Pos: {} / Left: {} / Right: {}", pos, left, right);
 
-    unsigned int id = stoul (left, nullptr);
-    unsigned int amount = stoul (right, nullptr);
+    unsigned int id = stoul(left, nullptr);
+    unsigned int amount = stoul(right, nullptr);
 
     spdlog::trace("Parse '{}' as Id: {} / Amount: {}", values[i], id, amount);
 
@@ -112,12 +126,11 @@ void validate(boost::any &v, const std::vector<std::string> &values, ProductAmou
 }
 
 int main(int argc, char *argv[]) {
-
   // Um den Validator zu testen
   //spdlog::set_level(spdlog::level::trace);
 
   po::options_description desc("Alle Optionen");
-  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("cart", po::value<vector<ProductAmountPair>>()->multitoken(), "warenkorb positionen [id:anzahl, ]")("amount,a", po::value<int>(), "amount")("usage,u", po::value<string>(), "verwendung [deposit|payoff|refund|redeemvoucher|buysnack]");
+  desc.add_options()("help", "hilfe")("verbose,v", po::value<int>()->implicit_value(1), "verbose")("keyfile,k", po::value<string>(), "pfad zur keyfile")("configfile,c", po::value<string>(), "pfad zur konfiguration")("cart", po::value<vector<ProductAmountPair>>()->multitoken(), "warenkorb positionen [id:anzahl, ]")("price", po::value<double>(), "preis der dem client anzeigt wird")("amount,a", po::value<int>(), "amount")("usage,u", po::value<string>(), "verwendung [deposit|payoff|refund|redeemvoucher|buysnack]");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);

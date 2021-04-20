@@ -29,7 +29,7 @@ class SpaceRestApi {
 
       void fetchInitDate(int memberid, ptree& data);
       bool checkDoorAccess(string doortoken);
-      bool transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart);
+      bool transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart, double clientprice, ptree& dataout);
 
       string getEndpoint(){
         return endpoint;
