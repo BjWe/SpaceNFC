@@ -122,10 +122,11 @@ bool SpaceRestApi::checkDoorAccess(string doortoken) {
   return false;
 }
 
-bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart) {
+bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart, double clientprice, ptree &dataout) {
   
   ptree datain;
   datain.add("token", financetoken);
+  datain.add("price", clientprice);
 
   ptree products;
   for(size_t i = 0; i < cart.size(); i++){
@@ -137,8 +138,6 @@ bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmou
 
   datain.add_child("products", products);  
 
-  ptree dataout;
-
   int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/checkoutsnackshopcart", datain, dataout);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
@@ -146,9 +145,9 @@ bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmou
     throw returncode;
   }
 
-  auto access = dataout.get_optional<bool>("access");
-  if (access) {
-    return access.value();
+  auto result = dataout.get_optional<bool>("result");
+  if (result) {
+    return result.value();
   }
 
   return false;
