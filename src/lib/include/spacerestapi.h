@@ -13,6 +13,13 @@
 using namespace std;
 using boost::property_tree::ptree;
 
+enum payin_e : uint8_t
+{
+  snackshop = 1,
+  membershipfee  = 2,
+  donation  = 3
+};
+
 class SpaceRestApi {
     protected:
       string endpoint;
@@ -21,7 +28,7 @@ class SpaceRestApi {
 
       string buildUri(string path);
       void setApiHeader(Poco::Net::HTTPRequest& req);
-      int fetchDataFromApi(string method, string path, ptree datain, ptree& dataout);
+      int fetchDataFromApi(string method, string path, ptree datain, ptree& dataout, int timeoutseconds);
 
     public:
       SpaceRestApi(string endpoint, string apikey, string token);
@@ -32,6 +39,7 @@ class SpaceRestApi {
       bool transmitSnackshopCart(string financetoken, vector<ProductAmountPair> cart, double clientprice, ptree& dataout);
       bool fetchSnackshopTransactions(string financetoken, ptree& dataout);
       bool redeemSnackshopVoucher(string financetoken, string code, ptree& dataout);
+      bool payInNote(string financetoken, payin_e payintype, int amount, ptree& dataout);
 
       string getEndpoint(){
         return endpoint;

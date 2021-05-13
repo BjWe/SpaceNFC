@@ -47,7 +47,7 @@ void SpaceRestApi::setApiHeader(Poco::Net::HTTPRequest& req) {
   req.setContentType("application/json");
 }
 
-int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptree& dataout) {
+int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptree& dataout, int timeoutseconds) {
   string struri = buildUri(path);
   spdlog::trace("make {} http request to '{}'", method, struri);
   Poco::URI uri(struri);
@@ -57,7 +57,7 @@ int SpaceRestApi::fetchDataFromApi(string method, string path, ptree datain, ptr
 
   request.setURI(uri.getPathAndQuery());
 
-  session.setTimeout(Poco::Timespan(2, 0));
+  session.setTimeout(Poco::Timespan(timeoutseconds, 0));
 
   session.setKeepAlive(true);
   request.setKeepAlive(true);
@@ -92,7 +92,7 @@ void SpaceRestApi::fetchInitDate(int memberid, ptree& data) {
   ptree datain;
   datain.add("memberid", memberid);
 
-  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/initdata", datain, data);
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/initdata", datain, data, 30);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   std::stringstream ss;
@@ -107,7 +107,7 @@ bool SpaceRestApi::checkDoorAccess(string doortoken) {
 
   ptree dataout;
 
-  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/doorcheck", datain, dataout);
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/doorcheck", datain, dataout, 2);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   if (returncode != 200) {
@@ -138,7 +138,7 @@ bool SpaceRestApi::transmitSnackshopCart(string financetoken, vector<ProductAmou
 
   datain.add_child("products", products);  
 
-  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/checkoutsnackshopcart", datain, dataout);
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/checkoutsnackshopcart", datain, dataout, 10);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   if (returncode != 200) {
@@ -158,7 +158,7 @@ bool SpaceRestApi::fetchSnackshopTransactions(string financetoken, ptree& dataou
   ptree datain;
   datain.add("token", financetoken);
 
-  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/snackshoptransactions", datain, dataout);
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/snackshoptransactions", datain, dataout, 10);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   if (returncode != 200) {
@@ -179,7 +179,29 @@ bool SpaceRestApi::redeemSnackshopVoucher(string financetoken, string code, ptre
   datain.add("token", financetoken);
   datain.add("code", code);
 
-  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/redeemsnackvoucher", datain, dataout);
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/redeemsnackvoucher", datain, dataout, 10);
+  spdlog::debug("HTTP Returncode: {}", returncode);
+
+  if (returncode != 200) {
+    throw returncode;
+  }
+
+  auto result = dataout.get_optional<bool>("result");
+  if (result) {
+    return result.value();
+  }
+
+  return false;  
+}
+
+bool SpaceRestApi::payInNote(string financetoken, payin_e payintype, int amount, ptree& dataout){
+  
+  ptree datain;
+  datain.add("token", financetoken);
+  datain.add("payintype", payintype);
+  datain.add("amount", amount);
+
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/payinnote", datain, dataout, 30);
   spdlog::debug("HTTP Returncode: {}", returncode);
 
   if (returncode != 200) {

@@ -48,7 +48,7 @@ void writeTransaction(SpacebiNFCTagManager tm, po::variables_map vm, SpaceRestAp
           if (tm.hasSpacebiApp(*currentTag) == SNTM_APP_OK) {
             spdlog::info("SpacebiAPP found");
 
-            tm.selectSpacebiApp(*currentTag);
+                tm.selectSpacebiApp(*currentTag);
 
             // Payment-Meta-Lesen
             spacebi_card_creditmetafile_t cmf;
