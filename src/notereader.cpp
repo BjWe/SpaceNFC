@@ -1,3 +1,5 @@
+#include <spdlog/sinks/daily_file_sink.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
 #include <boost/filesystem.hpp>
@@ -28,6 +30,13 @@ int main(int argc, char** argv) {
     cout << desc << "\n";
     return 1;
   }
+
+  std::vector<spdlog::sink_ptr> sinks;
+  sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+  sinks.push_back(std::make_shared<spdlog::sinks::daily_file_sink_st>("logs/notereader", 23, 59));
+  auto combined_logger = std::make_shared<spdlog::logger>("notereader", begin(sinks), end(sinks));
+  combined_logger->flush_on(spdlog::level::debug);
+  spdlog::set_default_logger(combined_logger);
 
   if (vm.count("verbose")) {
     spdlog::set_level(spdlog::level::trace);
@@ -115,6 +124,7 @@ int main(int argc, char** argv) {
   while (!terminate) {
     nv10.update();
     if (nv10.getValidChannel() > 0) {
+      uint currentChannel = nv10.getValidChannel();
       string key = "nv10.channel" + (boost::format("%02u") % nv10.getValidChannel()).str() + "_value";
       spdlog::trace("looking for config key '{}'", key);
       boost::optional<int> channelvalue = config.get_optional<int>(key);
@@ -124,12 +134,74 @@ int main(int argc, char** argv) {
       } else {
         ptree data;
         try {
-          if (rapi.payInNote(vm["token"].as<string>(), payin_e::snackshop, channelvalue.value(), data)) {
-            nv10.escrowAccept();
+          if (rapi.payInNoteS1(vm["token"].as<string>(), payin_e::snackshop, channelvalue.value(), data)) {
+            auto code = data.get_optional<string>("code");
+            if (code.has_value()) {
+              spdlog::warn("note accept");
+              // Channel leeren, um nach dem Accept auf die Bestätigung zu warten
+              nv10.clearValidChannel();
+              nv10.escrowAccept();
+
+              uint tries = 10;
+              while (tries > 0) {
+                tries--;
+                sleep(1);
+                nv10.update();
+                if (nv10.fraudDetected() || nv10.strimmingDetected()) {
+                  string handled = "";
+                  if (nv10.strimmingDetected()) {
+                    handled = "STRIMMING";
+                  } else {
+                    handled = "FRAUD";
+                  }
+                  spdlog::error("{} handled", handled);
+                  try {
+                    rapi.payInNoteS2(code.value(), handled, data);
+                  } catch (...) {
+                    spdlog::error("transaction finalize ({}}) failed (request not trow exception)", handled);
+                  }
+                  nv10.clearFraud();
+                  nv10.clearStrimming();
+
+                  tries = 0;
+                } else if (nv10.getValidChannel() > 0) {
+                  // Hier muss der Kanal derselbe sein, wie vor dem "Accept"
+                  if (currentChannel == nv10.getValidChannel()) {
+                    try {
+                      rapi.payInNoteS2(code.value(), "OK", data);
+                    } catch (...) {
+                      spdlog::error("transaction finalize (OK) failed (request not trow exception)");
+                    }
+                  } else {
+                    try {
+                      rapi.payInNoteS2(code.value(), "ERROR", data);
+                    } catch (...) {
+                      spdlog::error("transaction finalize (ERROR) failed (request not trow exception)");
+                    }
+                  }
+                  nv10.clearValidChannel();
+                  tries = 0;
+                } else if(tries == 1){
+                  spdlog::error("transaction finalize (TIMEOUT) failed (reader timeout)");
+                  try {
+                      rapi.payInNoteS2(code.value(), "TIMEOUT", data);
+                    } catch (...) {
+                      spdlog::error("transaction finalize (TIMEOUT) failed (request not trow exception)");
+                    }
+                }
+              }
+
+            } else {
+              spdlog::warn("note rejected (code missing)");
+              nv10.escrowReject();
+            }
+
           } else {
+            spdlog::warn("note rejected (request not successful)");
             nv10.escrowReject();
           }
         } catch (...) {
+          spdlog::warn("note rejected (request not trow exception)");
           nv10.escrowReject();
         }
       }

@@ -17,7 +17,8 @@ NV10SIO::NV10SIO(string devicename) {
   this->devicename = devicename;
   this->validChannel = 0;
   this->busyFlag = false;
-  this->isfraudDetected = false;
+  this->isStrimmingDetected = false;
+  this->isFraudDetected = false;
   this->isStackerBlocked = false;
 
   spdlog::trace("new nv10sio: Device is: {}", devicename);
@@ -114,13 +115,23 @@ bool NV10SIO::isBusy() {
 }
 
 bool NV10SIO::fraudDetected() {
-  return this->isfraudDetected;
+  return this->isFraudDetected;
 }
+
+bool NV10SIO::strimmingDetected() {
+  return this->isStrimmingDetected;
+}
+
 bool NV10SIO::stackerBlocked() {
   return this->isStackerBlocked;
 }
+
+void NV10SIO::clearStrimming() {
+  this->isStrimmingDetected = false;
+}
+
 void NV10SIO::clearFraud() {
-  this->isfraudDetected = false;
+  this->isFraudDetected = false;
 }
 
 void NV10SIO::processMessage(uint8_t msg) {
@@ -138,12 +149,12 @@ void NV10SIO::processMessage(uint8_t msg) {
     }
     case STRIMMING_ATTEMPTED: {
       spdlog::error("nv10 strimming attempted");
-      this->isfraudDetected = true;
+      this->isStrimmingDetected = true;
       break;
     }
     case NOTE_REJECTED_FRAUD: {
       spdlog::error("nv10 fraud rejected");
-      this->isfraudDetected = true;
+      this->isFraudDetected = true;
       break;
     }
     case STACKER_BLOCKED: {
