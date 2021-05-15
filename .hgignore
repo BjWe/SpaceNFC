@@ -9,3 +9,4 @@ conf/desfirekeys.ini
 conf/desfiretestkeys.ini
 Makefile.bak
 build/*
+logs/*

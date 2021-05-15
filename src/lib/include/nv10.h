@@ -80,7 +80,8 @@ class NV10SIO {
    int fd;
 
    bool busyFlag;
-   bool isfraudDetected;
+   bool isStrimmingDetected;
+   bool isFraudDetected;
    bool isStackerBlocked;
    int validChannel;
 
@@ -110,8 +111,11 @@ class NV10SIO {
 
   bool isBusy();
   bool fraudDetected();
+  bool strimmingDetected();
   bool stackerBlocked();
+  void clearStrimming();
   void clearFraud();
+
 
   void update();
 

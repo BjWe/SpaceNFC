@@ -194,12 +194,35 @@ bool SpaceRestApi::redeemSnackshopVoucher(string financetoken, string code, ptre
   return false;  
 }
 
-bool SpaceRestApi::payInNote(string financetoken, payin_e payintype, int amount, ptree& dataout){
+bool SpaceRestApi::payInNoteS1(string financetoken, payin_e payintype, int amount, ptree& dataout){
   
   ptree datain;
+  datain.add("stage", 1);
   datain.add("token", financetoken);
   datain.add("payintype", payintype);
   datain.add("amount", amount);
+
+  int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/payinnote", datain, dataout, 30);
+  spdlog::debug("HTTP Returncode: {}", returncode);
+
+  if (returncode != 200) {
+    throw returncode;
+  }
+
+  auto result = dataout.get_optional<bool>("result");
+  if (result) {
+    return result.value();
+  }
+
+  return false;  
+}
+
+bool SpaceRestApi::payInNoteS2(string code, string handled, ptree& dataout){
+  
+  ptree datain;
+  datain.add("stage", 2);
+  datain.add("code", code);
+  datain.add("handled", handled);
 
   int returncode = fetchDataFromApi(Poco::Net::HTTPRequest::HTTP_POST, "/service/mifare/payinnote", datain, dataout, 30);
   spdlog::debug("HTTP Returncode: {}", returncode);
