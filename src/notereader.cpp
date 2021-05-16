@@ -1,5 +1,5 @@
 #include <spdlog/sinks/daily_file_sink.h>
-#include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
 #include <boost/filesystem.hpp>
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
   }
 
   std::vector<spdlog::sink_ptr> sinks;
-  sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+  sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
   sinks.push_back(std::make_shared<spdlog::sinks::daily_file_sink_st>("logs/notereader", 23, 59));
   auto combined_logger = std::make_shared<spdlog::logger>("notereader", begin(sinks), end(sinks));
   combined_logger->flush_on(spdlog::level::debug);
@@ -95,6 +95,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  boost::property_tree::ptree jsonout;
+
   SpaceRestApi rapi(config.get<string>("spaceapi.endpoint"), config.get<string>("spaceapi.apikey"), config.get<string>("spaceapi.token"));
 
   NV10SIO nv10 = NV10SIO(config.get<string>("nv10.device"));
@@ -114,10 +116,15 @@ int main(int argc, char** argv) {
         nv10.inhibitNote(i);
       }
     }
-  }
+  
+
+  
 
   nv10.enableEscrow();
   nv10.enable();
+
+  // Falls noch was hängt
+  nv10.escrowReject();
 
   bool terminate = false;
 
@@ -130,6 +137,7 @@ int main(int argc, char** argv) {
       boost::optional<int> channelvalue = config.get_optional<int>(key);
       if (!channelvalue.has_value()) {
         spdlog::error("channelvalue for channel {} not found", nv10.getValidChannel());
+        jsonout.add("error", "internal error");
         nv10.escrowReject();
       } else {
         ptree data;
@@ -144,6 +152,7 @@ int main(int argc, char** argv) {
 
               uint tries = 10;
               while (tries > 0) {
+                spdlog::trace("read try run. {} from {} left", tries, 10);
                 tries--;
                 sleep(1);
                 nv10.update();
@@ -151,14 +160,17 @@ int main(int argc, char** argv) {
                   string handled = "";
                   if (nv10.strimmingDetected()) {
                     handled = "STRIMMING";
+                    jsonout.add("error", "strimming");
                   } else {
                     handled = "FRAUD";
+                    jsonout.add("error", "fraud");
                   }
                   spdlog::error("{} handled", handled);
+                  
                   try {
                     rapi.payInNoteS2(code.value(), handled, data);
                   } catch (...) {
-                    spdlog::error("transaction finalize ({}}) failed (request not trow exception)", handled);
+                    spdlog::error("transaction finalize ({}) failed (request not trow exception)", handled);
                   }
                   nv10.clearFraud();
                   nv10.clearStrimming();
@@ -167,50 +179,70 @@ int main(int argc, char** argv) {
                 } else if (nv10.getValidChannel() > 0) {
                   // Hier muss der Kanal derselbe sein, wie vor dem "Accept"
                   if (currentChannel == nv10.getValidChannel()) {
+                    jsonout.add("error", "");
                     try {
                       rapi.payInNoteS2(code.value(), "OK", data);
+                      jsonout.add("oldbalance", data.get<double>("oldBalance"));
+                      jsonout.add("newbalance", data.get<double>("newBalance")); 
+                      jsonout.add("amount", channelvalue.value());
                     } catch (...) {
-                      spdlog::error("transaction finalize (OK) failed (request not trow exception)");
+                      spdlog::error("transaction finalize (OK) failed (request not throw exception)");
                     }
                   } else {
+                    jsonout.add("error", "note_check_missmatch");
                     try {
                       rapi.payInNoteS2(code.value(), "ERROR", data);
                     } catch (...) {
-                      spdlog::error("transaction finalize (ERROR) failed (request not trow exception)");
+                      spdlog::error("transaction finalize (ERROR) failed (request not throw exception)");
                     }
                   }
+                  spdlog::trace("done. clearing");
                   nv10.clearValidChannel();
                   tries = 0;
                 } else if(tries == 1){
                   spdlog::error("transaction finalize (TIMEOUT) failed (reader timeout)");
+                  jsonout.add("error", "timeout");
                   try {
                       rapi.payInNoteS2(code.value(), "TIMEOUT", data);
+                      
                     } catch (...) {
-                      spdlog::error("transaction finalize (TIMEOUT) failed (request not trow exception)");
+                      spdlog::error("transaction finalize (TIMEOUT) failed (request not throw exception)");
                     }
                 }
               }
 
             } else {
               spdlog::warn("note rejected (code missing)");
+              jsonout.add("error", "internal_error");
               nv10.escrowReject();
             }
 
           } else {
             spdlog::warn("note rejected (request not successful)");
+            jsonout.add("error", "internal_error");
             nv10.escrowReject();
           }
         } catch (...) {
-          spdlog::warn("note rejected (request not trow exception)");
+          spdlog::warn("note rejected (request not throw exception)");
+          jsonout.add("error", "internal_error");
           nv10.escrowReject();
         }
       }
 
-      nv10.update();
-      sleep(1);
+      //nv10.update();
+      //sleep(1);
       nv10.disable();
       terminate = true;
     }
     sleep(1);
   }
+  } else {
+    jsonout.add("error", "device_error");
+  }
+
+  stringstream ss;
+  boost::property_tree::json_parser::write_json(ss, jsonout, vm.count("verbose"));
+  cout << "----BEGIN JSON----" << endl
+       << ss.str() << "----END JSON----" << endl;
+
 }
