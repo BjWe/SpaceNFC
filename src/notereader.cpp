@@ -141,6 +141,7 @@ int main(int argc, char** argv) {
         nv10.escrowReject();
       } else {
         ptree data;
+        cout << "----DATAEXCH S1----" << endl;
         try {
           if (rapi.payInNoteS1(vm["token"].as<string>(), payin_e::snackshop, channelvalue.value(), data)) {
             auto code = data.get_optional<string>("code");
@@ -167,6 +168,7 @@ int main(int argc, char** argv) {
                   }
                   spdlog::error("{} handled", handled);
                   
+                  cout << "----DATAEXCH S2----" << endl;
                   try {
                     rapi.payInNoteS2(code.value(), handled, data);
                   } catch (...) {
@@ -184,7 +186,7 @@ int main(int argc, char** argv) {
                       rapi.payInNoteS2(code.value(), "OK", data);
                       jsonout.add("oldbalance", data.get<double>("oldBalance"));
                       jsonout.add("newbalance", data.get<double>("newBalance")); 
-                      jsonout.add("amount", channelvalue.value());
+                      jsonout.add("notevalue", channelvalue.value());
                     } catch (...) {
                       spdlog::error("transaction finalize (OK) failed (request not throw exception)");
                     }
