@@ -131,6 +131,7 @@ int main(int argc, char** argv) {
   while (!terminate) {
     nv10.update();
     if (nv10.getValidChannel() > 0) {
+      cout << "----NOTE PRESENT----" << endl;
       uint currentChannel = nv10.getValidChannel();
       string key = "nv10.channel" + (boost::format("%02u") % nv10.getValidChannel()).str() + "_value";
       spdlog::trace("looking for config key '{}'", key);
