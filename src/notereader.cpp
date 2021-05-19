@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
       boost::optional<int> channelvalue = config.get_optional<int>(key);
       if (!channelvalue.has_value()) {
         spdlog::error("channelvalue for channel {} not found", nv10.getValidChannel());
-        jsonout.add("error", "internal error");
+        jsonout.add("error", "internal_error");
         nv10.escrowReject();
       } else {
         ptree data;
