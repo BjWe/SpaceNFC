@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
         ptree data;
         cout << "----DATAEXCH S1----" << endl;
         try {
-          if (rapi.payInNoteS1(vm["token"].as<string>(), payin_e::snackshop, channelvalue.value(), data)) {
+          if (rapi.payInNoteS1(vm["token"].as<string>(), payintype, channelvalue.value(), data)) {
             auto code = data.get_optional<string>("code");
             if (code.has_value()) {
               spdlog::warn("note accept");
