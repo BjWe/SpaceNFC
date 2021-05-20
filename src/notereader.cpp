@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
       string key = "nv10.channel" + (boost::format("%02u") % i).str() + "_enable";
       spdlog::trace("looking for config key '{}'", key);
       boost::optional<bool> channelenable = config.get_optional<bool>(key);
-      if (channelenable.has_value()) {
+      if (channelenable) {
         spdlog::trace("channel {} has value", i);
         if (channelenable.value()) {
           nv10.enableNote(i);
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
       string key = "nv10.channel" + (boost::format("%02u") % nv10.getValidChannel()).str() + "_value";
       spdlog::trace("looking for config key '{}'", key);
       boost::optional<int> channelvalue = config.get_optional<int>(key);
-      if (!channelvalue.has_value()) {
+      if (!channelvalue) {
         spdlog::error("channelvalue for channel {} not found", nv10.getValidChannel());
         jsonout.add("error", "internal_error");
         nv10.escrowReject();
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
         try {
           if (rapi.payInNoteS1(vm["token"].as<string>(), payintype, channelvalue.value(), data)) {
             auto code = data.get_optional<string>("code");
-            if (code.has_value()) {
+            if (code) {
               spdlog::warn("note accept");
               // Channel leeren, um nach dem Accept auf die Bestätigung zu warten
               nv10.clearValidChannel();
