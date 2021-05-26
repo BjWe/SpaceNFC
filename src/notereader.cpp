@@ -7,6 +7,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <iostream>
+#include <ctime>
 
 #include "lib/include/global.h"
 #include "lib/include/nv10.h"
@@ -116,129 +117,139 @@ int main(int argc, char** argv) {
         nv10.inhibitNote(i);
       }
     }
-  
 
-  
+    nv10.enableEscrow();
+    nv10.enable();
 
-  nv10.enableEscrow();
-  nv10.enable();
+    // Falls noch was hängt
+    nv10.escrowReject();
 
-  // Falls noch was hängt
-  nv10.escrowReject();
+    bool terminate = false;
 
-  bool terminate = false;
+    boost::optional<int> timeoutvalue = config.get_optional<int>("nv10.timeout");
+    uint timeout = 30;
+    if(timeoutvalue){
+      timeout = timeoutvalue.value();
+    }
+    time_t timeoutcheck = time(0) + timeout; 
 
-  while (!terminate) {
-    nv10.update();
-    if (nv10.getValidChannel() > 0) {
-      cout << "----NOTE PRESENT----" << endl;
-      uint currentChannel = nv10.getValidChannel();
-      string key = "nv10.channel" + (boost::format("%02u") % nv10.getValidChannel()).str() + "_value";
-      spdlog::trace("looking for config key '{}'", key);
-      boost::optional<int> channelvalue = config.get_optional<int>(key);
-      if (!channelvalue) {
-        spdlog::error("channelvalue for channel {} not found", nv10.getValidChannel());
-        jsonout.add("error", "internal_error");
-        nv10.escrowReject();
-      } else {
-        ptree data;
-        cout << "----DATAEXCH S1----" << endl;
-        try {
-          if (rapi.payInNoteS1(vm["token"].as<string>(), payintype, channelvalue.value(), data)) {
-            auto code = data.get_optional<string>("code");
-            if (code) {
-              spdlog::warn("note accept");
-              // Channel leeren, um nach dem Accept auf die Bestätigung zu warten
-              nv10.clearValidChannel();
-              nv10.escrowAccept();
+    while (!terminate && (timeoutcheck >= time(0))) {
+      nv10.update();
+      if (nv10.getValidChannel() > 0) {
+        cout << "----NOTE PRESENT----" << endl;
+        uint currentChannel = nv10.getValidChannel();
+        string key = "nv10.channel" + (boost::format("%02u") % nv10.getValidChannel()).str() + "_value";
+        spdlog::trace("looking for config key '{}'", key);
+        boost::optional<int> channelvalue = config.get_optional<int>(key);
+        if (!channelvalue) {
+          spdlog::error("channelvalue for channel {} not found", nv10.getValidChannel());
+          jsonout.add("error", "internal_error");
+          nv10.escrowReject();
+        } else {
+          ptree data;
+          cout << "----DATAEXCH S1----" << endl;
+          try {
+            if (rapi.payInNoteS1(vm["token"].as<string>(), payintype, channelvalue.value(), data)) {
+              auto code = data.get_optional<string>("code");
+              if (code) {
+                spdlog::warn("note accept");
+                // Channel leeren, um nach dem Accept auf die Bestätigung zu warten
+                nv10.clearValidChannel();
+                nv10.escrowAccept();
 
-              uint tries = 10;
-              while (tries > 0) {
-                spdlog::trace("read try run. {} from {} left", tries, 10);
-                tries--;
-                sleep(1);
-                nv10.update();
-                if (nv10.fraudDetected() || nv10.strimmingDetected()) {
-                  string handled = "";
-                  if (nv10.strimmingDetected()) {
-                    handled = "STRIMMING";
-                    jsonout.add("error", "strimming");
-                  } else {
-                    handled = "FRAUD";
-                    jsonout.add("error", "fraud");
-                  }
-                  spdlog::error("{} handled", handled);
-                  
-                  cout << "----DATAEXCH S2----" << endl;
-                  try {
-                    rapi.payInNoteS2(code.value(), handled, data);
-                  } catch (...) {
-                    spdlog::error("transaction finalize ({}) failed (request not trow exception)", handled);
-                  }
-                  nv10.clearFraud();
-                  nv10.clearStrimming();
-
-                  tries = 0;
-                } else if (nv10.getValidChannel() > 0) {
-                  // Hier muss der Kanal derselbe sein, wie vor dem "Accept"
-                  if (currentChannel == nv10.getValidChannel()) {
-                    jsonout.add("error", "");
-                    try {
-                      rapi.payInNoteS2(code.value(), "OK", data);
-                      jsonout.add("oldbalance", data.get<double>("oldBalance"));
-                      jsonout.add("newbalance", data.get<double>("newBalance")); 
-                      jsonout.add("notevalue", channelvalue.value());
-                    } catch (...) {
-                      spdlog::error("transaction finalize (OK) failed (request not throw exception)");
+                uint tries = 10;
+                while (tries > 0) {
+                  spdlog::trace("read try run. {} from {} left", tries, 10);
+                  tries--;
+                  sleep(1);
+                  nv10.update();
+                  if (nv10.fraudDetected() || nv10.strimmingDetected()) {
+                    string handled = "";
+                    if (nv10.strimmingDetected()) {
+                      handled = "STRIMMING";
+                      jsonout.add("error", "strimming");
+                    } else {
+                      handled = "FRAUD";
+                      jsonout.add("error", "fraud");
                     }
-                  } else {
-                    jsonout.add("error", "note_check_missmatch");
+                    spdlog::error("{} handled", handled);
+
+                    cout << "----DATAEXCH S2----" << endl;
                     try {
-                      rapi.payInNoteS2(code.value(), "ERROR", data);
+                      rapi.payInNoteS2(code.value(), handled, data);
                     } catch (...) {
-                      spdlog::error("transaction finalize (ERROR) failed (request not throw exception)");
+                      spdlog::error("transaction finalize ({}) failed (request not trow exception)", handled);
                     }
-                  }
-                  spdlog::trace("done. clearing");
-                  nv10.clearValidChannel();
-                  tries = 0;
-                } else if(tries == 1){
-                  spdlog::error("transaction finalize (TIMEOUT) failed (reader timeout)");
-                  jsonout.add("error", "timeout");
-                  try {
+                    nv10.clearFraud();
+                    nv10.clearStrimming();
+
+                    tries = 0;
+                  } else if (nv10.getValidChannel() > 0) {
+                    // Hier muss der Kanal derselbe sein, wie vor dem "Accept"
+                    if (currentChannel == nv10.getValidChannel()) {
+                      jsonout.add("error", "");
+                      try {
+                        rapi.payInNoteS2(code.value(), "OK", data);
+                        jsonout.add("oldbalance", data.get<double>("oldBalance"));
+                        jsonout.add("newbalance", data.get<double>("newBalance"));
+                        jsonout.add("notevalue", channelvalue.value());
+                      } catch (...) {
+                        spdlog::error("transaction finalize (OK) failed (request not throw exception)");
+                      }
+                    } else {
+                      jsonout.add("error", "note_check_missmatch");
+                      try {
+                        rapi.payInNoteS2(code.value(), "ERROR", data);
+                      } catch (...) {
+                        spdlog::error("transaction finalize (ERROR) failed (request not throw exception)");
+                      }
+                    }
+                    spdlog::trace("done. clearing");
+                    nv10.clearValidChannel();
+                    tries = 0;
+                  } else if (tries == 1) {
+                    spdlog::error("transaction finalize (TIMEOUT) failed (reader timeout)");
+                    jsonout.add("error", "timeout");
+                    try {
                       rapi.payInNoteS2(code.value(), "TIMEOUT", data);
-                      
+
                     } catch (...) {
                       spdlog::error("transaction finalize (TIMEOUT) failed (request not throw exception)");
                     }
+                  }
                 }
+
+              } else {
+                spdlog::warn("note rejected (code missing)");
+                jsonout.add("error", "internal_error");
+                nv10.escrowReject();
               }
 
             } else {
-              spdlog::warn("note rejected (code missing)");
+              spdlog::warn("note rejected (request not successful)");
               jsonout.add("error", "internal_error");
               nv10.escrowReject();
             }
-
-          } else {
-            spdlog::warn("note rejected (request not successful)");
+          } catch (...) {
+            spdlog::warn("note rejected (request not throw exception)");
             jsonout.add("error", "internal_error");
             nv10.escrowReject();
           }
-        } catch (...) {
-          spdlog::warn("note rejected (request not throw exception)");
-          jsonout.add("error", "internal_error");
-          nv10.escrowReject();
         }
-      }
 
-      //nv10.update();
-      //sleep(1);
-      nv10.disable();
-      terminate = true;
+        //nv10.update();
+        //sleep(1);
+        nv10.disable();
+        terminate = true;
+      }
+      sleep(1);
     }
-    sleep(1);
-  }
+
+    if(jsonout.empty()){
+      spdlog::warn("main loop timeout");
+      jsonout.add("error", "timeout");
+    }
+
   } else {
     jsonout.add("error", "device_error");
   }
@@ -247,5 +258,4 @@ int main(int argc, char** argv) {
   boost::property_tree::json_parser::write_json(ss, jsonout, vm.count("verbose"));
   cout << "----BEGIN JSON----" << endl
        << ss.str() << "----END JSON----" << endl;
-
 }
